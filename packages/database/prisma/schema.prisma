@@ -7,15 +7,72 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum UserStatus { ACTIVE INACTIVE }
-enum MemberRole { SUPER_ADMIN FIRM_ADMIN CA ACCOUNTANT STAFF CLIENT }
-enum AccountType { ASSET LIABILITY EQUITY INCOME EXPENSE }
-enum EntryStatus { DRAFT POSTED REVERSED }
-enum InvoiceStatus { DRAFT VALIDATED POSTED PARTIALLY_PAID PAID CANCELLED }
-enum PaymentType { RECEIPT PAYMENT }
-enum PaymentMethod { CASH BANK UPI OTHER }
-enum ReconciliationStatus { MATCHED PROBABLE PARTIAL MISSING EXTRA MISMATCH REVIEW }
-enum DocumentStatus { UPLOADED PROCESSING REVIEW APPROVED REJECTED }
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum MemberRole {
+  SUPER_ADMIN
+  FIRM_ADMIN
+  CA
+  ACCOUNTANT
+  STAFF
+  CLIENT
+}
+
+enum AccountType {
+  ASSET
+  LIABILITY
+  EQUITY
+  INCOME
+  EXPENSE
+}
+
+enum EntryStatus {
+  DRAFT
+  POSTED
+  REVERSED
+}
+
+enum InvoiceStatus {
+  DRAFT
+  VALIDATED
+  POSTED
+  PARTIALLY_PAID
+  PAID
+  CANCELLED
+}
+
+enum PaymentType {
+  RECEIPT
+  PAYMENT
+}
+
+enum PaymentMethod {
+  CASH
+  BANK
+  UPI
+  OTHER
+}
+
+enum ReconciliationStatus {
+  MATCHED
+  PROBABLE
+  PARTIAL
+  MISSING
+  EXTRA
+  MISMATCH
+  REVIEW
+}
+
+enum DocumentStatus {
+  UPLOADED
+  PROCESSING
+  REVIEW
+  APPROVED
+  REJECTED
+}
 
 model Organization {
   id String @id @default(uuid())
@@ -44,6 +101,7 @@ model User {
   clientLinks ClientUser[]
   auditLogs AuditLog[]
   documents Document[]
+  documentReviews DocumentReview[]
 }
 
 model Role {
@@ -107,6 +165,7 @@ model Business {
   gstRegistrations GSTRegistration[]
   financialYears FinancialYear[]
   accounts Account[]
+  journalEntries JournalEntry[]
   customers Customer[]
   suppliers Supplier[]
   items Item[]
@@ -512,13 +571,11 @@ model AuditLog {
   action String
   entity String
   entityId String?
-  before Json?
-  after Json?
-  ip String?
-  timestamp DateTime @default(now())
+  metadata Json?
+  createdAt DateTime @default(now())
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   user User? @relation(fields: [userId], references: [id])
-  @@index([organizationId, timestamp])
+  @@index([organizationId, createdAt])
 }
 
 model Setting {
@@ -526,6 +583,8 @@ model Setting {
   organizationId String
   key String
   value Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   @@unique([organizationId, key])
 }
