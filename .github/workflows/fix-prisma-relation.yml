@@ -19,12 +19,14 @@ jobs:
           from pathlib import Path
           path = Path('packages/database/prisma/schema.prisma')
           text = path.read_text()
-          needle = '  settings Setting[]\n'
-          replacement = needle + '  documents Document[]\n'
-          if '  documents Document[]\n' not in text:
-              if needle not in text:
+          start = text.index('model Organization {')
+          end = text.index('\n}\n\nmodel User {', start) + 2
+          block = text[start:end]
+          if 'documents Document[]' not in block:
+              if '  settings Setting[]' not in block:
                   raise SystemExit('Organization settings relation not found')
-              text = text.replace(needle, replacement, 1)
+              block = block.replace('  settings Setting[]\n', '  settings Setting[]\n  documents Document[]\n', 1)
+              text = text[:start] + block + text[end:]
               path.write_text(text)
           PY
       - name: Commit fix
