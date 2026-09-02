@@ -5,50 +5,31 @@ services:
       POSTGRES_DB: taxone
       POSTGRES_USER: taxone
       POSTGRES_PASSWORD: change-me-in-local-env
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-
+    volumes: [postgres_data:/var/lib/postgresql/data]
   redis:
     image: redis:7-alpine
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-
+    volumes: [redis_data:/data]
   api:
-    build:
-      context: ./apps/api
+    build: {context: ./apps/api}
     environment:
       DATABASE_URL: postgresql://taxone:change-me-in-local-env@postgres:5432/taxone
       REDIS_URL: redis://redis:6379
-    depends_on:
-      - postgres
-      - redis
-    ports:
-      - "4000:4000"
-
+      JWT_SECRET: change-me-development-secret
+      APP_URL: http://localhost:3000
+    depends_on: [postgres,redis]
+    ports: ['4000:4000']
   web:
-    build:
-      context: ./apps/web
-    environment:
-      NEXT_PUBLIC_API_URL: http://localhost:4000/api/v1
-    depends_on:
-      - api
-    ports:
-      - "3000:3000"
-
+    build: {context: ./apps/web}
+    environment: {NEXT_PUBLIC_API_URL: http://localhost:4000}
+    depends_on: [api]
+    ports: ['3000:3000']
   worker:
-    build:
-      context: ./apps/worker
-    environment:
-      DATABASE_URL: postgresql://taxone:change-me-in-local-env@postgres:5432/taxone
-      REDIS_URL: redis://redis:6379
-    depends_on:
-      - postgres
-      - redis
-
+    build: {context: ./apps/worker}
+    environment: {REDIS_URL: redis://redis:6379}
+    depends_on: [redis]
+  ocr:
+    build: {context: ./services/ocr}
+    ports: ['8000:8000']
 volumes:
   postgres_data:
   redis_data:
