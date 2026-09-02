@@ -1,0 +1,5 @@
+import Decimal from 'decimal.js';
+export type Line={accountId:string; debit:Decimal.Value; credit:Decimal.Value};
+export function assertBalanced(lines:Line[]):void { const debit=lines.reduce((s,l)=>s.plus(l.debit),new Decimal(0)); const credit=lines.reduce((s,l)=>s.plus(l.credit),new Decimal(0)); if(!debit.eq(credit)) throw new Error(`Unbalanced journal: debit ${debit.toFixed(2)} != credit ${credit.toFixed(2)}`); if(debit.isNegative()||credit.isNegative()) throw new Error('Debit/credit cannot be negative'); }
+export function accountBalance(debit:Decimal.Value,credit:Decimal.Value,type:'ASSET'|'EXPENSE'|'LIABILITY'|'EQUITY'|'INCOME'){const d=new Decimal(debit),c=new Decimal(credit); return ['ASSET','EXPENSE'].includes(type)?d.minus(c):c.minus(d)}
+export function trialBalance(lines:{accountId:string;debit:Decimal.Value;credit:Decimal.Value}[]){const m=new Map<string,{debit:Decimal;credit:Decimal}>(); for(const l of lines){const x=m.get(l.accountId)??{debit:new Decimal(0),credit:new Decimal(0)};x.debit=x.debit.plus(l.debit);x.credit=x.credit.plus(l.credit);m.set(l.accountId,x)} return m;}
