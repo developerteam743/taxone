@@ -1,5 +1,12 @@
-generator client { provider = "prisma-client-js" }
-datasource db { provider = "postgresql" url = env("DATABASE_URL") }
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
 enum UserStatus { ACTIVE INACTIVE }
 enum MemberRole { SUPER_ADMIN FIRM_ADMIN CA ACCOUNTANT STAFF CLIENT }
 enum AccountType { ASSET LIABILITY EQUITY INCOME EXPENSE }
@@ -9,42 +16,516 @@ enum PaymentType { RECEIPT PAYMENT }
 enum PaymentMethod { CASH BANK UPI OTHER }
 enum ReconciliationStatus { MATCHED PROBABLE PARTIAL MISSING EXTRA MISMATCH REVIEW }
 enum DocumentStatus { UPLOADED PROCESSING REVIEW APPROVED REJECTED }
-model Organization { id String @id @default(uuid()) name String slug String @unique status String @default("ACTIVE") createdAt DateTime @default(now()) updatedAt DateTime @updatedAt members OrganizationMember[] clients Client[] businesses Business[] auditLogs AuditLog[] settings Setting[] }
-model User { id String @id @default(uuid()) name String email String @unique phone String? passwordHash String status UserStatus @default(ACTIVE) createdAt DateTime @default(now()) updatedAt DateTime @updatedAt memberships OrganizationMember[] clientLinks ClientUser[] auditLogs AuditLog[] documents Document[] }
-model Role { id String @id @default(uuid()) name String @unique permissions Permission[] members OrganizationMember[] }
-model Permission { id String @id @default(uuid()) code String @unique roles Role[] }
-model OrganizationMember { id String @id @default(uuid()) organizationId String userId String roleId String organization Organization @relation(fields:[organizationId],references:[id],onDelete:Cascade) user User @relation(fields:[userId],references:[id],onDelete:Cascade) role Role @relation(fields:[roleId],references:[id]) @@unique([organizationId,userId]) @@index([organizationId]) }
-model Client { id String @id @default(uuid()) organizationId String name String email String? phone String? address String? status String @default("ACTIVE") organization Organization @relation(fields:[organizationId],references:[id],onDelete:Cascade) users ClientUser[] businesses Business[] @@index([organizationId]) }
-model ClientUser { id String @id @default(uuid()) clientId String userId String client Client @relation(fields:[clientId],references:[id],onDelete:Cascade) user User @relation(fields:[userId],references:[id],onDelete:Cascade) @@unique([clientId,userId]) }
-model Business { id String @id @default(uuid()) organizationId String clientId String? legalName String tradeName String? pan String? constitution String? organization Organization @relation(fields:[organizationId],references:[id],onDelete:Cascade) client Client? @relation(fields:[clientId],references:[id]) gstRegistrations GSTRegistration[] financialYears FinancialYear[] accounts Account[] customers Customer[] suppliers Supplier[] items Item[] invoices Invoice[] purchases Purchase[] payments Payment[] documents Document[] gstRecords GSTReturnRecord[] bankAccounts BankAccount[] @@index([organizationId]) @@index([pan]) }
-model GSTRegistration { id String @id @default(uuid()) businessId String gstin String state String legalName String registrationType String business Business @relation(fields:[businessId],references:[id],onDelete:Cascade) @@unique([gstin]) @@index([businessId]) }
-model FinancialYear { id String @id @default(uuid()) businessId String startDate DateTime endDate DateTime status String @default("OPEN") business Business @relation(fields:[businessId],references:[id],onDelete:Cascade) journalEntries JournalEntry[] @@index([businessId,startDate]) }
-model Account { id String @id @default(uuid()) businessId String code String name String type AccountType parentId String? active Boolean @default(true) business Business @relation(fields:[businessId],references:[id],onDelete:Cascade) parent Account? @relation("AccountTree",fields:[parentId],references:[id]) children Account[] @relation("AccountTree") lines JournalLine[] bankAccounts BankAccount[] @@unique([businessId,code]) @@index([businessId]) }
-model JournalEntry { id String @id @default(uuid()) businessId String financialYearId String entryNumber Int date DateTime narration String sourceType String? sourceId String? status EntryStatus @default(DRAFT) business Business @relation(fields:[businessId],references:[id],onDelete:Cascade) financialYear FinancialYear @relation(fields:[financialYearId],references:[id]) lines JournalLine[] createdAt DateTime @default(now()) @@unique([businessId,entryNumber]) @@index([businessId,date]) }
-model JournalLine { id String @id @default(uuid()) journalEntryId String accountId String debit Decimal @db.Decimal(18,2) credit Decimal @db.Decimal(18,2) description String? journalEntry JournalEntry @relation(fields:[journalEntryId],references:[id],onDelete:Cascade) account Account @relation(fields:[accountId],references:[id]) @@index([accountId]) }
-model BankAccount { id String @id @default(uuid()) businessId String accountId String name String accountNumberMasked String? bankName String? business Business @relation(fields:[businessId],references:[id],onDelete:Cascade) account Account @relation(fields:[accountId],references:[id]) }
-model Customer { id String @id @default(uuid()) businessId String name String gstin String? pan String? address String? phone String? email String? business Business @relation(fields:[businessId],references:[id],onDelete:Cascade) invoices Invoice[] @@index([businessId,gstin]) }
-model Supplier { id String @id @default(uuid()) businessId String name String gstin String? pan String? address String? phone String? email String? business Business @relation(fields:[businessId],references:[id],onDelete:Cascade) purchases Purchase[] @@index([businessId,gstin]) }
-model Item { id String @id @default(uuid()) businessId String sku String? name String hsnSac String? unit String saleRate Decimal @db.Decimal(18,2) purchaseRate Decimal @db.Decimal(18,2) gstRate Decimal @db.Decimal(5,2) active Boolean @default(true) business Business @relation(fields:[businessId],references:[id],onDelete:Cascade) invoiceItems InvoiceItem[] purchaseItems PurchaseItem[] @@unique([businessId,name]) }
-model TaxRate { id String @id @default(uuid()) code String @unique rate Decimal @db.Decimal(5,2) effectiveFrom DateTime effectiveTo DateTime? }
-model Invoice { id String @id @default(uuid()) businessId String customerId String? invoiceNumber String invoiceDate DateTime placeOfSupply String? reverseCharge Boolean @default(false) taxableValue Decimal @db.Decimal(18,2) cgst Decimal @db.Decimal(18,2) sgst Decimal @db.Decimal(18,2) igst Decimal @db.Decimal(18,2) cess Decimal @db.Decimal(18,2) total Decimal @db.Decimal(18,2) status InvoiceStatus @default(DRAFT) business Business @relation(fields:[businessId],references:[id],onDelete:Cascade) customer Customer? @relation(fields:[customerId],references:[id]) items InvoiceItem[] payments PaymentAllocation[] gstRecords GSTReturnRecord[] @@unique([businessId,invoiceNumber]) @@index([businessId,invoiceDate]) }
-model InvoiceItem { id String @id @default(uuid()) invoiceId String itemId String description String quantity Decimal @db.Decimal(18,3) rate Decimal @db.Decimal(18,2) discount Decimal @db.Decimal(18,2) taxableValue Decimal @db.Decimal(18,2) cgst Decimal @db.Decimal(18,2) sgst Decimal @db.Decimal(18,2) igst Decimal @db.Decimal(18,2) cess Decimal @db.Decimal(18,2) invoice Invoice @relation(fields:[invoiceId],references:[id],onDelete:Cascade) item Item @relation(fields:[itemId],references:[id]) }
-model CreditNote { id String @id @default(uuid()) businessId String number String date DateTime amount Decimal @db.Decimal(18,2) reason String }
-model DebitNote { id String @id @default(uuid()) businessId String number String date DateTime amount Decimal @db.Decimal(18,2) reason String }
-model Purchase { id String @id @default(uuid()) businessId String supplierId String invoiceNumber String invoiceDate DateTime taxableValue Decimal @db.Decimal(18,2) cgst Decimal @db.Decimal(18,2) sgst Decimal @db.Decimal(18,2) igst Decimal @db.Decimal(18,2) cess Decimal @db.Decimal(18,2) itcEligible Boolean @default(true) status InvoiceStatus @default(DRAFT) business Business @relation(fields:[businessId],references:[id],onDelete:Cascade) supplier Supplier @relation(fields:[supplierId],references:[id]) items PurchaseItem[] @@unique([businessId,invoiceNumber]) }
-model PurchaseItem { id String @id @default(uuid()) purchaseId String itemId String description String quantity Decimal @db.Decimal(18,3) rate Decimal @db.Decimal(18,2) taxableValue Decimal @db.Decimal(18,2) purchase Purchase @relation(fields:[purchaseId],references:[id],onDelete:Cascade) item Item @relation(fields:[itemId],references:[id]) }
-model Payment { id String @id @default(uuid()) businessId String type PaymentType date DateTime amount Decimal @db.Decimal(18,2) method PaymentMethod reference String? status String @default("POSTED") business Business @relation(fields:[businessId],references:[id],onDelete:Cascade) allocations PaymentAllocation[] @@index([businessId,date]) }
-model PaymentAllocation { id String @id @default(uuid()) paymentId String invoiceId String amount Decimal @db.Decimal(18,2) payment Payment @relation(fields:[paymentId],references:[id],onDelete:Cascade) invoice Invoice @relation(fields:[invoiceId],references:[id]) @@unique([paymentId,invoiceId]) }
-model GSTReturnPeriod { id String @id @default(uuid()) businessId String period String returnType String status String @default("IMPORTED") }
-model GSTReturnRecord { id String @id @default(uuid()) businessId String invoiceId String? supplierGstin String? invoiceNumber String invoiceDate DateTime taxableValue Decimal @db.Decimal(18,2) cgst Decimal @db.Decimal(18,2) sgst Decimal @db.Decimal(18,2) igst Decimal @db.Decimal(18,2) cess Decimal @db.Decimal(18,2) source String business Business @relation(fields:[businessId],references:[id],onDelete:Cascade) invoice Invoice? @relation(fields:[invoiceId],references:[id]) reconciliations GSTReconciliationItem[] @@index([businessId,invoiceNumber]) }
-model GSTPurchaseRecord { id String @id @default(uuid()) businessId String supplierGstin String? invoiceNumber String invoiceDate DateTime taxableValue Decimal @db.Decimal(18,2) cgst Decimal @db.Decimal(18,2) sgst Decimal @db.Decimal(18,2) igst Decimal @db.Decimal(18,2) cess Decimal @db.Decimal(18,2) }
-model GSTReconciliation { id String @id @default(uuid()) businessId String name String status String @default("RUNNING") total Int @default(0) matched Int @default(0) partial Int @default(0) missing Int @default(0) extra Int @default(0) mismatch Int @default(0) items GSTReconciliationItem[] }
-model GSTReconciliationItem { id String @id @default(uuid()) reconciliationId String returnRecordId String? bookRecordKey String? status ReconciliationStatus score Decimal @db.Decimal(5,2) taxDifference Decimal @db.Decimal(18,2) taxableDifference Decimal @db.Decimal(18,2) reconciliation GSTReconciliation @relation(fields:[reconciliationId],references:[id],onDelete:Cascade) returnRecord GSTReturnRecord? @relation(fields:[returnRecordId],references:[id]) }
-model Document { id String @id @default(uuid()) organizationId String businessId String? filename String mimeType String size BigInt checksum String storageKey String status DocumentStatus @default(UPLOADED) uploaderId String organization Organization @relation(fields:[organizationId],references:[id],onDelete:Cascade) business Business? @relation(fields:[businessId],references:[id]) uploader User @relation(fields:[uploaderId],references:[id]) ocrJobs OCRJob[] reviews DocumentReview[] @@index([organizationId,businessId]) }
-model OCRJob { id String @id @default(uuid()) documentId String status String @default("QUEUED") provider String attempts Int @default(0) document Document @relation(fields:[documentId],references:[id],onDelete:Cascade) result OCRResult? }
-model OCRResult { id String @id @default(uuid()) ocrJobId String @unique rawText String structuredJson Json confidence Decimal @db.Decimal(5,2) schemaVersion String ocrJob OCRJob @relation(fields:[ocrJobId],references:[id]) }
-model DocumentReview { id String @id @default(uuid()) documentId String reviewerId String status String corrections Json? document Document @relation(fields:[documentId],references:[id],onDelete:Cascade) reviewer User @relation(fields:[reviewerId],references:[id]) }
-model Report { id String @id @default(uuid()) organizationId String businessId String? type String status String @default("QUEUED") storageKey String? createdAt DateTime @default(now()) }
-model Notification { id String @id @default(uuid()) organizationId String userId String title String body String channel String readAt DateTime? createdAt DateTime @default(now()) }
-model AuditLog { id String @id @default(uuid()) organizationId String userId String? action String entity String entityId String? before Json? after Json? ip String? timestamp DateTime @default(now()) organization Organization @relation(fields:[organizationId],references:[id],onDelete:Cascade) user User? @relation(fields:[userId],references:[id]) @@index([organizationId,timestamp]) }
-model Setting { id String @id @default(uuid()) organizationId String key String value Json organization Organization @relation(fields:[organizationId],references:[id],onDelete:Cascade) @@unique([organizationId,key]) }
+
+model Organization {
+  id String @id @default(uuid())
+  name String
+  slug String @unique
+  status String @default("ACTIVE")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  members OrganizationMember[]
+  clients Client[]
+  businesses Business[]
+  auditLogs AuditLog[]
+  settings Setting[]
+}
+
+model User {
+  id String @id @default(uuid())
+  name String
+  email String @unique
+  phone String?
+  passwordHash String
+  status UserStatus @default(ACTIVE)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  memberships OrganizationMember[]
+  clientLinks ClientUser[]
+  auditLogs AuditLog[]
+  documents Document[]
+}
+
+model Role {
+  id String @id @default(uuid())
+  name String @unique
+  permissions Permission[]
+  members OrganizationMember[]
+}
+
+model Permission {
+  id String @id @default(uuid())
+  code String @unique
+  roles Role[]
+}
+
+model OrganizationMember {
+  id String @id @default(uuid())
+  organizationId String
+  userId String
+  roleId String
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id])
+  @@unique([organizationId, userId])
+  @@index([organizationId])
+}
+
+model Client {
+  id String @id @default(uuid())
+  organizationId String
+  name String
+  email String?
+  phone String?
+  address String?
+  status String @default("ACTIVE")
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  users ClientUser[]
+  businesses Business[]
+  @@index([organizationId])
+}
+
+model ClientUser {
+  id String @id @default(uuid())
+  clientId String
+  userId String
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([clientId, userId])
+}
+
+model Business {
+  id String @id @default(uuid())
+  organizationId String
+  clientId String?
+  legalName String
+  tradeName String?
+  pan String?
+  constitution String?
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  client Client? @relation(fields: [clientId], references: [id])
+  gstRegistrations GSTRegistration[]
+  financialYears FinancialYear[]
+  accounts Account[]
+  customers Customer[]
+  suppliers Supplier[]
+  items Item[]
+  invoices Invoice[]
+  purchases Purchase[]
+  payments Payment[]
+  documents Document[]
+  gstRecords GSTReturnRecord[]
+  bankAccounts BankAccount[]
+  @@index([organizationId])
+  @@index([pan])
+}
+
+model GSTRegistration {
+  id String @id @default(uuid())
+  businessId String
+  gstin String
+  state String
+  legalName String
+  registrationType String
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  @@unique([gstin])
+  @@index([businessId])
+}
+
+model FinancialYear {
+  id String @id @default(uuid())
+  businessId String
+  startDate DateTime
+  endDate DateTime
+  status String @default("OPEN")
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  journalEntries JournalEntry[]
+  @@index([businessId, startDate])
+}
+
+model Account {
+  id String @id @default(uuid())
+  businessId String
+  code String
+  name String
+  type AccountType
+  parentId String?
+  active Boolean @default(true)
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  parent Account? @relation("AccountTree", fields: [parentId], references: [id])
+  children Account[] @relation("AccountTree")
+  lines JournalLine[]
+  bankAccounts BankAccount[]
+  @@unique([businessId, code])
+  @@index([businessId])
+}
+
+model JournalEntry {
+  id String @id @default(uuid())
+  businessId String
+  financialYearId String
+  entryNumber Int
+  date DateTime
+  narration String
+  sourceType String?
+  sourceId String?
+  status EntryStatus @default(DRAFT)
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  financialYear FinancialYear @relation(fields: [financialYearId], references: [id])
+  lines JournalLine[]
+  createdAt DateTime @default(now())
+  @@unique([businessId, entryNumber])
+  @@index([businessId, date])
+}
+
+model JournalLine {
+  id String @id @default(uuid())
+  journalEntryId String
+  accountId String
+  debit Decimal @db.Decimal(18, 2)
+  credit Decimal @db.Decimal(18, 2)
+  description String?
+  journalEntry JournalEntry @relation(fields: [journalEntryId], references: [id], onDelete: Cascade)
+  account Account @relation(fields: [accountId], references: [id])
+  @@index([accountId])
+}
+
+model BankAccount {
+  id String @id @default(uuid())
+  businessId String
+  accountId String
+  name String
+  accountNumberMasked String?
+  bankName String?
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  account Account @relation(fields: [accountId], references: [id])
+}
+
+model Customer {
+  id String @id @default(uuid())
+  businessId String
+  name String
+  gstin String?
+  pan String?
+  address String?
+  phone String?
+  email String?
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  invoices Invoice[]
+  @@index([businessId, gstin])
+}
+
+model Supplier {
+  id String @id @default(uuid())
+  businessId String
+  name String
+  gstin String?
+  pan String?
+  address String?
+  phone String?
+  email String?
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  purchases Purchase[]
+  @@index([businessId, gstin])
+}
+
+model Item {
+  id String @id @default(uuid())
+  businessId String
+  sku String?
+  name String
+  hsnSac String?
+  unit String
+  saleRate Decimal @db.Decimal(18, 2)
+  purchaseRate Decimal @db.Decimal(18, 2)
+  gstRate Decimal @db.Decimal(5, 2)
+  active Boolean @default(true)
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  invoiceItems InvoiceItem[]
+  purchaseItems PurchaseItem[]
+  @@unique([businessId, name])
+}
+
+model TaxRate {
+  id String @id @default(uuid())
+  code String @unique
+  rate Decimal @db.Decimal(5, 2)
+  effectiveFrom DateTime
+  effectiveTo DateTime?
+}
+
+model Invoice {
+  id String @id @default(uuid())
+  businessId String
+  customerId String?
+  invoiceNumber String
+  invoiceDate DateTime
+  placeOfSupply String?
+  reverseCharge Boolean @default(false)
+  taxableValue Decimal @db.Decimal(18, 2)
+  cgst Decimal @db.Decimal(18, 2)
+  sgst Decimal @db.Decimal(18, 2)
+  igst Decimal @db.Decimal(18, 2)
+  cess Decimal @db.Decimal(18, 2)
+  total Decimal @db.Decimal(18, 2)
+  status InvoiceStatus @default(DRAFT)
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  customer Customer? @relation(fields: [customerId], references: [id])
+  items InvoiceItem[]
+  payments PaymentAllocation[]
+  gstRecords GSTReturnRecord[]
+  @@unique([businessId, invoiceNumber])
+  @@index([businessId, invoiceDate])
+}
+
+model InvoiceItem {
+  id String @id @default(uuid())
+  invoiceId String
+  itemId String
+  description String
+  quantity Decimal @db.Decimal(18, 3)
+  rate Decimal @db.Decimal(18, 2)
+  discount Decimal @db.Decimal(18, 2)
+  taxableValue Decimal @db.Decimal(18, 2)
+  cgst Decimal @db.Decimal(18, 2)
+  sgst Decimal @db.Decimal(18, 2)
+  igst Decimal @db.Decimal(18, 2)
+  cess Decimal @db.Decimal(18, 2)
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  item Item @relation(fields: [itemId], references: [id])
+}
+
+model CreditNote {
+  id String @id @default(uuid())
+  businessId String
+  number String
+  date DateTime
+  amount Decimal @db.Decimal(18, 2)
+  reason String
+}
+
+model DebitNote {
+  id String @id @default(uuid())
+  businessId String
+  number String
+  date DateTime
+  amount Decimal @db.Decimal(18, 2)
+  reason String
+}
+
+model Purchase {
+  id String @id @default(uuid())
+  businessId String
+  supplierId String
+  invoiceNumber String
+  invoiceDate DateTime
+  taxableValue Decimal @db.Decimal(18, 2)
+  cgst Decimal @db.Decimal(18, 2)
+  sgst Decimal @db.Decimal(18, 2)
+  igst Decimal @db.Decimal(18, 2)
+  cess Decimal @db.Decimal(18, 2)
+  itcEligible Boolean @default(true)
+  status InvoiceStatus @default(DRAFT)
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  supplier Supplier @relation(fields: [supplierId], references: [id])
+  items PurchaseItem[]
+  @@unique([businessId, invoiceNumber])
+}
+
+model PurchaseItem {
+  id String @id @default(uuid())
+  purchaseId String
+  itemId String
+  description String
+  quantity Decimal @db.Decimal(18, 3)
+  rate Decimal @db.Decimal(18, 2)
+  taxableValue Decimal @db.Decimal(18, 2)
+  purchase Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  item Item @relation(fields: [itemId], references: [id])
+}
+
+model Payment {
+  id String @id @default(uuid())
+  businessId String
+  type PaymentType
+  date DateTime
+  amount Decimal @db.Decimal(18, 2)
+  method PaymentMethod
+  reference String?
+  status String @default("POSTED")
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  allocations PaymentAllocation[]
+  @@index([businessId, date])
+}
+
+model PaymentAllocation {
+  id String @id @default(uuid())
+  paymentId String
+  invoiceId String
+  amount Decimal @db.Decimal(18, 2)
+  payment Payment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  invoice Invoice @relation(fields: [invoiceId], references: [id])
+  @@unique([paymentId, invoiceId])
+}
+
+model GSTReturnPeriod {
+  id String @id @default(uuid())
+  businessId String
+  period String
+  returnType String
+  status String @default("IMPORTED")
+}
+
+model GSTReturnRecord {
+  id String @id @default(uuid())
+  businessId String
+  invoiceId String?
+  supplierGstin String?
+  invoiceNumber String
+  invoiceDate DateTime
+  taxableValue Decimal @db.Decimal(18, 2)
+  cgst Decimal @db.Decimal(18, 2)
+  sgst Decimal @db.Decimal(18, 2)
+  igst Decimal @db.Decimal(18, 2)
+  cess Decimal @db.Decimal(18, 2)
+  source String
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  invoice Invoice? @relation(fields: [invoiceId], references: [id])
+  reconciliations GSTReconciliationItem[]
+  @@index([businessId, invoiceNumber])
+}
+
+model GSTPurchaseRecord {
+  id String @id @default(uuid())
+  businessId String
+  supplierGstin String?
+  invoiceNumber String
+  invoiceDate DateTime
+  taxableValue Decimal @db.Decimal(18, 2)
+  cgst Decimal @db.Decimal(18, 2)
+  sgst Decimal @db.Decimal(18, 2)
+  igst Decimal @db.Decimal(18, 2)
+  cess Decimal @db.Decimal(18, 2)
+}
+
+model GSTReconciliation {
+  id String @id @default(uuid())
+  businessId String
+  name String
+  status String @default("RUNNING")
+  total Int @default(0)
+  matched Int @default(0)
+  partial Int @default(0)
+  missing Int @default(0)
+  extra Int @default(0)
+  mismatch Int @default(0)
+  items GSTReconciliationItem[]
+}
+
+model GSTReconciliationItem {
+  id String @id @default(uuid())
+  reconciliationId String
+  returnRecordId String?
+  bookRecordKey String?
+  status ReconciliationStatus
+  score Decimal @db.Decimal(5, 2)
+  taxDifference Decimal @db.Decimal(18, 2)
+  taxableDifference Decimal @db.Decimal(18, 2)
+  reconciliation GSTReconciliation @relation(fields: [reconciliationId], references: [id], onDelete: Cascade)
+  returnRecord GSTReturnRecord? @relation(fields: [returnRecordId], references: [id])
+}
+
+model Document {
+  id String @id @default(uuid())
+  organizationId String
+  businessId String?
+  filename String
+  mimeType String
+  size BigInt
+  checksum String
+  storageKey String
+  status DocumentStatus @default(UPLOADED)
+  uploaderId String
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  business Business? @relation(fields: [businessId], references: [id])
+  uploader User @relation(fields: [uploaderId], references: [id])
+  ocrJobs OCRJob[]
+  reviews DocumentReview[]
+  @@index([organizationId, businessId])
+}
+
+model OCRJob {
+  id String @id @default(uuid())
+  documentId String
+  status String @default("QUEUED")
+  provider String
+  attempts Int @default(0)
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  result OCRResult?
+}
+
+model OCRResult {
+  id String @id @default(uuid())
+  ocrJobId String @unique
+  rawText String
+  structuredJson Json
+  confidence Decimal @db.Decimal(5, 2)
+  schemaVersion String
+  ocrJob OCRJob @relation(fields: [ocrJobId], references: [id])
+}
+
+model DocumentReview {
+  id String @id @default(uuid())
+  documentId String
+  reviewerId String
+  status String
+  corrections Json?
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  reviewer User @relation(fields: [reviewerId], references: [id])
+}
+
+model Report {
+  id String @id @default(uuid())
+  organizationId String
+  businessId String?
+  type String
+  status String @default("QUEUED")
+  storageKey String?
+  createdAt DateTime @default(now())
+}
+
+model Notification {
+  id String @id @default(uuid())
+  organizationId String
+  userId String
+  title String
+  body String
+  channel String
+  readAt DateTime?
+  createdAt DateTime @default(now())
+}
+
+model AuditLog {
+  id String @id @default(uuid())
+  organizationId String
+  userId String?
+  action String
+  entity String
+  entityId String?
+  before Json?
+  after Json?
+  ip String?
+  timestamp DateTime @default(now())
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user User? @relation(fields: [userId], references: [id])
+  @@index([organizationId, timestamp])
+}
+
+model Setting {
+  id String @id @default(uuid())
+  organizationId String
+  key String
+  value Json
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  @@unique([organizationId, key])
+}
