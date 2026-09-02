@@ -1,0 +1,1 @@
+export const panPattern=/^[A-Z]{5}[0-9]{4}[A-Z]$/; export function isPAN(v:string){return panPattern.test(v.trim().toUpperCase())}; export function sanitizeFilename(v:string){return v.replace(/[^a-zA-Z0-9._-]/g,'_').slice(0,180)}
