@@ -86,6 +86,7 @@ model Organization {
   businesses Business[]
   auditLogs AuditLog[]
   settings Setting[]
+  documents Document[]
 }
 
 model User {
