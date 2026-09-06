@@ -85,6 +85,7 @@ model Organization {
   clients Client[]
   businesses Business[]
   auditLogs AuditLog[]
+  documents Document[]
   settings Setting[]
   documents Document[]
 }
@@ -434,6 +435,7 @@ model GSTReturnPeriod {
   period String
   returnType String
   status String @default("IMPORTED")
+  @@unique([businessId, period, returnType])
 }
 
 model GSTReturnRecord {

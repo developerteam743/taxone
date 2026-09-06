@@ -3,9 +3,11 @@ services:
     image: postgres:16-alpine
     environment: {POSTGRES_DB: taxone, POSTGRES_USER: taxone, POSTGRES_PASSWORD: change-me-in-local-env}
     volumes: [postgres_data:/var/lib/postgresql/data]
+    ports: ['5432:5432']
   redis:
     image: redis:7-alpine
     volumes: [redis_data:/data]
+    ports: ['6379:6379']
   api:
     build: {context: ., dockerfile: apps/api/Dockerfile}
     environment: {DATABASE_URL: postgresql://taxone:change-me-in-local-env@postgres:5432/taxone, REDIS_URL: redis://redis:6379, JWT_SECRET: change-me-development-secret, APP_URL: http://localhost:3000}

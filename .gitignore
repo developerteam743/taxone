@@ -1,0 +1,9 @@
+node_modules
+.env
+*.tsbuildinfo
+apps/*/dist
+packages/*/dist
+services/*/dist
+apps/web/.next
+apps/web/next-env.d.ts
+storage

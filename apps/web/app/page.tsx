@@ -1,2 +1,61 @@
-const stats=[['Revenue','₹12,48,000'],['Purchases','₹7,32,500'],['Receivables','₹3,84,200'],['GST ITC','₹86,420']];
-export default function Home(){return <main className="min-h-screen"><div className="flex min-h-screen"><aside className="hidden md:block w-64 bg-slate-950 text-white p-5"><div className="text-2xl font-bold mb-8">TaxOne</div>{['Dashboard','Clients','Businesses','Sales','Purchases','Payments','GST','Reconciliation','Documents','Reports','Settings'].map(x=><div key={x} className="px-3 py-2 rounded-lg hover:bg-slate-800 cursor-pointer">{x}</div>)}</aside><section className="flex-1 p-5 md:p-8"><header className="flex justify-between items-center mb-8"><div><h1 className="text-2xl font-bold">Dashboard</h1><p className="muted">Demo CA Firm · FY 2026–27</p></div><button className="btn bg-slate-900 text-white">+ New Invoice</button></header><div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">{stats.map(([a,b])=><div className="card" key={a}><p className="muted text-sm">{a}</p><div className="text-2xl font-bold mt-2">{b}</div></div>)}</div><div className="grid lg:grid-cols-3 gap-5"><div className="card lg:col-span-2"><h2 className="font-bold mb-4">Sales & Purchases</h2><div className="h-64 flex items-end gap-3 border-b border-slate-200">{[35,52,44,70,60,82,74,92,68,88,78,96].map((h,i)=><div key={i} className="flex-1 bg-slate-800 rounded-t" style={{height:`${h}%`}} />)}</div></div><div className="card"><h2 className="font-bold mb-4">Reconciliation</h2>{[['Matched','82%'],['Partial','8%'],['Review','6%'],['Missing','4%']].map(([a,b])=><div className="flex justify-between py-3 border-b border-slate-100" key={a}><span>{a}</span><strong>{b}</strong></div>)}</div></div><div className="card mt-5"><h2 className="font-bold mb-4">Recent activity</h2><p className="muted">Invoice, purchase, payment and document activity will appear here.</p></div></section></div></main>}
+'use client';
+import { useState } from 'react';
+import AnnouncementBar from '../components/landing/AnnouncementBar';
+import Navbar from '../components/landing/Navbar';
+import HeroSection from '../components/landing/HeroSection';
+import ClientSlider from '../components/landing/ClientSlider';
+import FourStageWorkflow from '../components/landing/FourStageWorkflow';
+import ThreeTools from '../components/landing/ThreeTools';
+import RealVoices from '../components/landing/RealVoices';
+import FAQSection from '../components/landing/FAQSection';
+import BlogSection from '../components/landing/BlogSection';
+import CommonCTA from '../components/landing/CommonCTA';
+import Footer from '../components/landing/Footer';
+import FreeTrialModal from '../components/landing/FreeTrialModal';
+
+export default function Home() {
+  const [isTrialOpen, setIsTrialOpen] = useState(false);
+
+  const openTrial = () => setIsTrialOpen(true);
+  const closeTrial = () => setIsTrialOpen(false);
+
+  return (
+    <main className="min-h-screen bg-white text-[#1c1f27]">
+      {/* Top Announcement Bar */}
+      <AnnouncementBar />
+
+      {/* Main Navigation Header */}
+      <Navbar onOpenTrial={openTrial} />
+
+      {/* Hero Section */}
+      <HeroSection onOpenTrial={openTrial} />
+
+      {/* Client Logos Marquee */}
+      <ClientSlider />
+
+      {/* 4-Stage Automated Bookkeeping Workflow */}
+      <FourStageWorkflow onOpenTrial={openTrial} />
+
+      {/* Three Interconnected Power Tools */}
+      <ThreeTools onOpenTrial={openTrial} />
+
+      {/* Real Voices & Performance Results */}
+      <RealVoices onOpenTrial={openTrial} />
+
+      {/* Frequently Asked Questions */}
+      <FAQSection />
+
+      {/* Industry Trends and Expert Blog */}
+      <BlogSection onOpenTrial={openTrial} />
+
+      {/* Call to Action Banner */}
+      <CommonCTA onOpenTrial={openTrial} />
+
+      {/* Comprehensive Footer */}
+      <Footer onOpenTrial={openTrial} />
+
+      {/* Free Trial / Lead Modal */}
+      <FreeTrialModal isOpen={isTrialOpen} onClose={closeTrial} />
+    </main>
+  );
+}
