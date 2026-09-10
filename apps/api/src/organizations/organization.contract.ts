@@ -1,6 +1,6 @@
 export type CreateOrganizationRequest = { name: string };
 export type UpdateOrganizationRequest = { name: string };
-export type CreateOrganizationInvitationRequest = { email: string; role?: 'ADMIN' | 'CA' | 'MEMBER' | 'CLIENT' };
+export type CreateOrganizationInvitationRequest = { email: string; role: 'ADMIN' | 'CA' | 'MEMBER' | 'CLIENT' };
 
 export type OrganizationValidationError = { field: 'name'; message: string };
 export type OrganizationInvitationValidationError = { field: 'email' | 'role'; message: string };
