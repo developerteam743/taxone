@@ -28,21 +28,21 @@ test('gets only a client owned by the organization', async () => {
 test('creates a client and audit record transactionally', async () => {
   const calls: unknown[] = [];
   const tx = { client: { create: async (args: unknown) => { calls.push(args); return client; } }, auditLog: { create: async (args: unknown) => { calls.push(args); return {}; } } };
-  const prisma = { $transaction: async (callback: (tx: typeof tx) => Promise<unknown>) => callback(tx) };
+  const prisma = { $transaction: async (callback: (transaction: typeof tx) => Promise<unknown>) => callback(tx) };
   assert.deepEqual(await createClientForOrganization(prisma as never, 'org-1', { name: client.name, email: client.email, phone: client.phone, pan: client.pan }, 'user-1', 'req-1'), client);
   assert.match(JSON.stringify(calls[0]), /org-1/); assert.match(JSON.stringify(calls[1]), /CLIENT_CREATED/); assert.match(JSON.stringify(calls[1]), /user-1/);
 });
 
 test('maps duplicate PAN to a tenant-scoped conflict', async () => {
   const tx = { client: { create: async () => { throw { code: 'P2002' }; } }, auditLog: { create: async () => ({}) } };
-  const prisma = { $transaction: async (callback: (tx: typeof tx) => Promise<unknown>) => callback(tx) };
+  const prisma = { $transaction: async (callback: (transaction: typeof tx) => Promise<unknown>) => callback(tx) };
   await assert.rejects(() => createClientForOrganization(prisma as never, 'org-1', { name: 'Duplicate', pan: client.pan }, 'user-1', 'req-2'), ConflictException);
 });
 
 test('updates only supplied client fields and audits before/after', async () => {
   const updated = { ...client, name: 'Acme Updated' }; const calls: unknown[] = [];
   const tx = { client: { findFirst: async () => client, update: async (args: unknown) => { calls.push(args); return updated; } }, auditLog: { create: async (args: unknown) => { calls.push(args); return {}; } } };
-  const prisma = { $transaction: async (callback: (tx: typeof tx) => Promise<unknown>) => callback(tx) };
+  const prisma = { $transaction: async (callback: (transaction: typeof tx) => Promise<unknown>) => callback(tx) };
   assert.deepEqual(await updateClientForOrganization(prisma as never, 'org-1', 'client-1', { name: 'Acme Updated' }, 'user-1', 'req-3'), updated);
   assert.deepEqual(calls[0], { where: { id: 'client-1' }, data: { name: 'Acme Updated' }, select });
   assert.match(JSON.stringify(calls[1]), /Acme Pvt Ltd/); assert.match(JSON.stringify(calls[1]), /Acme Updated/);
@@ -50,14 +50,14 @@ test('updates only supplied client fields and audits before/after', async () => 
 
 test('does not update a cross-tenant client', async () => {
   const tx = { client: { findFirst: async () => null, update: async () => { throw new Error('must not update'); } }, auditLog: { create: async () => { throw new Error('must not audit'); } } };
-  const prisma = { $transaction: async (callback: (tx: typeof tx) => Promise<unknown>) => callback(tx) };
+  const prisma = { $transaction: async (callback: (transaction: typeof tx) => Promise<unknown>) => callback(tx) };
   await assert.rejects(() => updateClientForOrganization(prisma as never, 'org-1', 'other-client', { name: 'Nope' }, 'user-1', 'req-4'), NotFoundException);
 });
 
 test('deletes a tenant client and writes an audit record', async () => {
   const calls: unknown[] = [];
   const tx = { client: { findFirst: async () => client, delete: async (args: unknown) => { calls.push(args); return client; } }, auditLog: { create: async (args: unknown) => { calls.push(args); return {}; } } };
-  const prisma = { $transaction: async (callback: (tx: typeof tx) => Promise<unknown>) => callback(tx) };
+  const prisma = { $transaction: async (callback: (transaction: typeof tx) => Promise<unknown>) => callback(tx) };
   assert.deepEqual(await deleteClientForOrganization(prisma as never, 'org-1', 'client-1', 'user-1', 'req-5'), { deleted: true, id: 'client-1' });
   assert.deepEqual(calls[0], { where: { id: 'client-1' } }); assert.match(JSON.stringify(calls[1]), /CLIENT_DELETED/);
 });
