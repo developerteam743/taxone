@@ -36,6 +36,8 @@ jobs:
           node-version: 22
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile
+      - name: Dependency vulnerability scan
+        run: pnpm audit --audit-level high
       - name: Install Playwright browser
         run: pnpm --filter @taxone/web exec playwright install --with-deps chromium
       - name: Generate Prisma client
