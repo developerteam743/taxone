@@ -15,6 +15,7 @@ import { MfaService } from './mfa-service.js';
 export type LoginMetadata = { requestId: string; userAgent?: string; ipHash?: string };
 export type LoginResult = LoginResponse & { accessToken: string; refreshToken: string };
 export type AuthLoginResult = LoginResult | MfaLoginResponse;
+export type AuthenticatedUser = { userId: string; organizationId: string | null; sessionId: string };
 
 @Injectable()
 export class AuthService {
@@ -41,6 +42,23 @@ export class AuthService {
       return { mfaRequired: true, challengeToken, user: { id: user.id, email: user.email, name: user.name }, organizationId, expiresIn: 5 * 60 };
     }
     return this.createSession(user.id, user.email, user.name, organizationId, metadata, 'AUTH_LOGIN');
+  }
+
+  async authenticateAccessToken(accessToken: string | undefined): Promise<AuthenticatedUser> {
+    if (typeof accessToken !== 'string' || accessToken.length < 32 || accessToken.length > 256) {
+      throw new UnauthorizedException('Authentication required');
+    }
+    const now = new Date();
+    const session = await this.prisma.authSession.findUnique({
+      where: { accessTokenHash: hashToken(accessToken) },
+      select: { id: true, userId: true, organizationId: true, accessExpiresAt: true, revokedAt: true },
+    });
+    if (!session || session.revokedAt || session.accessExpiresAt <= now) {
+      throw new UnauthorizedException('Authentication required');
+    }
+    const user = await this.prisma.user.findUnique({ where: { id: session.userId }, select: { id: true } });
+    if (!user) throw new UnauthorizedException('Authentication required');
+    return { userId: user.id, organizationId: session.organizationId, sessionId: session.id };
   }
 
   async refresh(refreshToken: string, metadata: LoginMetadata): Promise<LoginResult> {
