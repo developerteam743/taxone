@@ -23,7 +23,28 @@ class HealthController {
 }
 
 @Module({
-  imports: [LoggerModule.forRoot({ pinoHttp: { level: process.env.LOG_LEVEL ?? 'info' } })],
+  imports: [LoggerModule.forRoot({
+    pinoHttp: {
+      level: process.env.LOG_LEVEL ?? 'info',
+      customProps: (req) => ({ requestId: req.headers['x-request-id'] }),
+      redact: {
+        paths: [
+          'req.headers.authorization',
+          'req.headers.cookie',
+          'req.headers.x-api-key',
+          'req.headers.x-auth-token',
+          'password',
+          'passwordHash',
+          'token',
+          'accessToken',
+          'refreshToken',
+          'apiKey',
+          'secret',
+        ],
+        censor: '[REDACTED]',
+      },
+    },
+  })],
   controllers: [HealthController],
 })
 class AppModule {
