@@ -82,7 +82,14 @@ test('does not create an invitation outside the authenticated membership boundar
   await assert.rejects(() => createOrganizationInvitationForUser(prisma as never, 'org-other', { email: 'invitee@example.test', role: 'MEMBER' }, 'user-1', 'req-6'), NotFoundException);
 });
 test('does not invite a user who is already a member of the organization', async () => {
-  const tx = { membership: { findFirst: async () => ({ id: 'membership-inviter' }) }, user: { findUnique: async () => ({ id: 'user-2' }) }, organizationInvitation: { create: async () => { throw new Error('must not create invitation'); } }, auditLog: { create: async () => { throw new Error('must not audit invitation'); } } };
-  const membershipPrisma = { ...tx, membership: { findFirst: async (args: unknown) => { if (JSON.stringify(args).includes('user-2')) return { id: 'existing-membership' }; return { id: 'membership-inviter' }; } } };
-  await assert.rejects(() => ({ $transaction: async (callback: (client: typeof membershipPrisma) => Promise<unknown>) => callback(membershipPrisma) } as never, 'org-1', { email: 'member@example.test', role: 'MEMBER' }, 'user-1', 'req-7'), ConflictException);
+  const calls: string[] = [];
+  const tx = {
+    membership: { findFirst: async (args: unknown) => { calls.push(JSON.stringify(args)); return JSON.stringify(args).includes('user-2') ? { id: 'existing-membership' } : { id: 'membership-inviter' }; } },
+    user: { findUnique: async () => ({ id: 'user-2' }) },
+    organizationInvitation: { create: async () => { throw new Error('must not create invitation'); } },
+    auditLog: { create: async () => { throw new Error('must not audit invitation'); } },
+  };
+  const prisma = { $transaction: async (callback: (client: typeof tx) => Promise<unknown>) => callback(tx) };
+  await assert.rejects(() => createOrganizationInvitationForUser(prisma as never, 'org-1', { email: 'member@example.test', role: 'MEMBER' }, 'user-1', 'req-7'), ConflictException);
+  assert.equal(calls.length, 2);
 });
