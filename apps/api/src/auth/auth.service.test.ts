@@ -64,8 +64,8 @@ function makeService(config: {
         ? { id: 'user-1', email: 'user@example.com', name: 'Test User' }
         : null,
     },
-    $transaction: async (callback: (tx: typeof authSession & { auditLog: typeof auditLog }) => Promise<unknown>) =>
-      callback({ ...authSession, auditLog }),
+    $transaction: async (callback: (tx: { authSession: typeof authSession; auditLog: typeof auditLog }) => Promise<unknown>) =>
+      callback({ authSession, auditLog }),
   };
   (service as unknown as { prisma: typeof prisma }).prisma = prisma;
   return { service, created, audits, familyRevocations };
