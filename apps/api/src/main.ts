@@ -16,6 +16,8 @@ import { ClientController } from './clients/client.controller.js';
 import { ClientService } from './clients/client.service.js';
 import { BusinessController } from './businesses/business.controller.js';
 import { BusinessService } from './businesses/business.service.js';
+import { GstRegistrationController } from './gst/gst-registration.controller.js';
+import { GstRegistrationService } from './gst/gst-registration.service.js';
 
 class RequestIdMiddleware implements NestMiddleware {
   use(req: Request, res: Response, next: NextFunction) {
@@ -41,8 +43,8 @@ class HealthController {
       redact: { paths: ['req.headers.authorization', 'req.headers.cookie', 'req.headers.x-api-key', 'req.headers.x-auth-token', 'password', 'passwordHash', 'token', 'accessToken', 'refreshToken', 'challengeToken', 'secret', 'encryptedSecret', 'apiKey'], censor: '[REDACTED]' },
     },
   })],
-  controllers: [HealthController, AuthController, OrganizationController, ClientController, BusinessController],
-  providers: [AuthService, MfaService, AccessTokenGuard, RolesGuard, OrganizationService, ClientService, BusinessService],
+  controllers: [HealthController, AuthController, OrganizationController, ClientController, BusinessController, GstRegistrationController],
+  providers: [AuthService, MfaService, AccessTokenGuard, RolesGuard, OrganizationService, ClientService, BusinessService, GstRegistrationService],
 })
 class AppModule {
   configure(consumer: MiddlewareConsumer) { consumer.apply(RequestIdMiddleware).forRoutes({ path: '*', method: RequestMethod.ALL }); }
