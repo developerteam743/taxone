@@ -1,14 +1,20 @@
-import { BadRequestException, Body, Controller, Get, Headers, HttpCode, HttpStatus, Param, Post, Req, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Headers, HttpCode, HttpStatus, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { AccessTokenGuard, type AuthenticatedRequest } from '../auth/access-token.guard.js';
 import { Roles } from '../auth/roles.decorator.js';
 import { RolesGuard } from '../auth/roles.guard.js';
-import { OrganizationService } from './organization.service.js';
+import { OrganizationService, normalizeOrganizationPageSize } from './organization.service.js';
 import { validateCreateOrganizationRequest } from './organization.contract.js';
 
 @Controller('api/v1/organizations')
 @UseGuards(AccessTokenGuard, RolesGuard)
 export class OrganizationController {
   constructor(private readonly organizationService: OrganizationService) {}
+
+  @Get()
+  @Roles('MEMBER')
+  async listOrganizations(@Req() request: AuthenticatedRequest, @Query('limit') limit: string | undefined, @Query('cursor') cursor: string | undefined) {
+    return this.organizationService.listForUser(request.user.userId, normalizeOrganizationPageSize(limit), cursor);
+  }
 
   @Get(':id')
   @Roles('MEMBER')
