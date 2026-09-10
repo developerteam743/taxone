@@ -99,15 +99,16 @@ function encodeBase32(input: Buffer): string {
   let buffer = 0;
   let bits = 0;
   for (const byte of input) {
-    buffer = (buffer << 8) | byte;
+    buffer = (buffer * 256) + byte;
     bits += 8;
     while (bits >= 5) {
       bits -= 5;
-      output += BASE32_ALPHABET[(buffer >>> bits) & 31];
+      output += BASE32_ALPHABET[Math.floor(buffer / (2 ** bits)) & 31];
+      buffer %= 2 ** bits;
     }
   }
   if (bits > 0) {
-    output += BASE32_ALPHABET[(buffer << (5 - bits)) & 31];
+    output += BASE32_ALPHABET[(buffer * (2 ** (5 - bits))) & 31];
   }
   return output;
 }
@@ -123,11 +124,12 @@ function decodeBase32(input: string): Buffer {
   for (const character of input) {
     const value = BASE32_ALPHABET.indexOf(character);
     if (value < 0) throw new Error('Invalid TOTP secret');
-    buffer = (buffer << 5) | value;
+    buffer = (buffer * 32) + value;
     bits += 5;
     if (bits >= 8) {
       bits -= 8;
-      bytes.push((buffer >>> bits) & 0xff);
+      bytes.push(Math.floor(buffer / (2 ** bits)) & 0xff);
+      buffer %= 2 ** bits;
     }
   }
   return Buffer.from(bytes);
