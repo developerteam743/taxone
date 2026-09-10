@@ -8,20 +8,26 @@ export type OrganizationSummary = {
   updatedAt: Date;
 };
 
+type OrganizationReader = Pick<PrismaClient, 'organization'>;
+
+export async function findOrganizationForUser(prisma: OrganizationReader, organizationId: string, userId: string): Promise<OrganizationSummary> {
+  const organization = await prisma.organization.findFirst({
+    where: {
+      id: organizationId,
+      memberships: { some: { userId } },
+    },
+    select: { id: true, name: true, createdAt: true, updatedAt: true },
+  });
+  if (!organization) throw new NotFoundException('Organization not found');
+  return organization;
+}
+
 @Injectable()
 export class OrganizationService {
   private readonly prisma = new PrismaClient();
 
   async getByIdForUser(organizationId: string, userId: string): Promise<OrganizationSummary> {
-    const organization = await this.prisma.organization.findFirst({
-      where: {
-        id: organizationId,
-        memberships: { some: { userId } },
-      },
-      select: { id: true, name: true, createdAt: true, updatedAt: true },
-    });
-    if (!organization) throw new NotFoundException('Organization not found');
-    return organization;
+    return findOrganizationForUser(this.prisma, organizationId, userId);
   }
 
   async onModuleDestroy(): Promise<void> {
