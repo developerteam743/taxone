@@ -73,6 +73,18 @@ export class AuthController {
     };
   }
 
+  @Post('logout')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async logout(
+    @Headers('x-request-id') requestId: string | undefined,
+    @Headers('user-agent') userAgent: string | undefined,
+    @Res({ passthrough: true }) response: Response,
+  ): Promise<void> {
+    const refreshToken = this.readRefreshCookie(response);
+    await this.authService.logout(refreshToken, this.metadata(response, requestId, userAgent));
+    this.clearAuthCookies(response);
+  }
+
   private metadata(response: Response, requestId: string | undefined, userAgent: string | undefined) {
     const forwardedFor = response.req.headers['x-forwarded-for'];
     const remoteAddress = response.req.socket.remoteAddress;
@@ -118,6 +130,17 @@ export class AuthController {
     response.cookie(REFRESH_TOKEN_COOKIE, refreshToken, {
       ...COOKIE_OPTIONS,
       maxAge: REFRESH_COOKIE_MAX_AGE,
+      path: '/api/v1/auth',
+    });
+  }
+
+  private clearAuthCookies(response: Response): void {
+    response.clearCookie(ACCESS_TOKEN_COOKIE, {
+      ...COOKIE_OPTIONS,
+      path: '/',
+    });
+    response.clearCookie(REFRESH_TOKEN_COOKIE, {
+      ...COOKIE_OPTIONS,
       path: '/api/v1/auth',
     });
   }
