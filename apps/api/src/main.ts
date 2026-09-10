@@ -7,6 +7,7 @@ import type { Request, Response, NextFunction } from 'express';
 import { ApiExceptionFilter } from './common/api-exception.filter.js';
 import { AuthController } from './auth/auth.controller.js';
 import { AuthService } from './auth/auth.service.js';
+import { MfaService } from './auth/mfa-service.js';
 
 class RequestIdMiddleware implements NestMiddleware {
   use(req: Request, res: Response, next: NextFunction) {
@@ -29,26 +30,11 @@ class HealthController {
     pinoHttp: {
       level: process.env.LOG_LEVEL ?? 'info',
       customProps: (req) => ({ requestId: req.headers['x-request-id'] }),
-      redact: {
-        paths: [
-          'req.headers.authorization',
-          'req.headers.cookie',
-          'req.headers.x-api-key',
-          'req.headers.x-auth-token',
-          'password',
-          'passwordHash',
-          'token',
-          'accessToken',
-          'refreshToken',
-          'apiKey',
-          'secret',
-        ],
-        censor: '[REDACTED]',
-      },
+      redact: { paths: ['req.headers.authorization', 'req.headers.cookie', 'req.headers.x-api-key', 'req.headers.x-auth-token', 'password', 'passwordHash', 'token', 'accessToken', 'refreshToken', 'challengeToken', 'secret', 'encryptedSecret', 'apiKey'], censor: '[REDACTED]' },
     },
   })],
   controllers: [HealthController, AuthController],
-  providers: [AuthService],
+  providers: [AuthService, MfaService],
 })
 class AppModule {
   configure(consumer: MiddlewareConsumer) { consumer.apply(RequestIdMiddleware).forRoutes({ path: '*', method: RequestMethod.ALL }); }
