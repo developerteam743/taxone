@@ -38,6 +38,10 @@ jobs:
         run: pnpm install --no-frozen-lockfile
       - name: Dependency vulnerability scan
         run: pnpm audit --audit-level high
+      - name: Secret scan
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Install Playwright browser
         run: pnpm --filter @taxone/web exec playwright install --with-deps chromium
       - name: Generate Prisma client
