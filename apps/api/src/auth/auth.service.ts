@@ -92,8 +92,146 @@ export class AuthService {
     };
   }
 
+  async refresh(refreshToken: string, metadata: LoginMetadata): Promise<LoginResult> {
+    if (typeof refreshToken !== 'string' || refreshToken.length < 32) {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    const tokenHash = hashToken(refreshToken);
+    const session = await this.prisma.authSession.findUnique({
+      where: { refreshTokenHash: tokenHash },
+    });
+
+    if (!session) {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    const now = new Date();
+    if (session.revokedAt || session.rotatedAt || session.refreshExpiresAt <= now) {
+      if (session.revokedAt || session.rotatedAt) {
+        await this.revokeRefreshFamily(session.refreshFamilyId, session.organizationId, session.userId, metadata);
+      } else {
+        await this.prisma.authSession.updateMany({
+          where: { id: session.id, revokedAt: null },
+          data: { revokedAt: now },
+        });
+      }
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    const nextAccessToken = createOpaqueToken();
+    const nextRefreshToken = createOpaqueToken();
+    const nextAccessExpiresAt = expiresAtFromSeconds(ACCESS_TOKEN_TTL_SECONDS, now);
+    const nextRefreshExpiresAt = session.refreshExpiresAt;
+
+    const rotated = await this.prisma.$transaction(async (tx) => {
+      const consumed = await tx.authSession.updateMany({
+        where: {
+          id: session.id,
+          revokedAt: null,
+          rotatedAt: null,
+          refreshExpiresAt: { gt: now },
+        },
+        data: { rotatedAt: now, revokedAt: now, lastUsedAt: now },
+      });
+
+      if (consumed.count !== 1) {
+        await tx.authSession.updateMany({
+          where: { refreshFamilyId: session.refreshFamilyId, revokedAt: null },
+          data: { revokedAt: now },
+        });
+        if (session.organizationId) {
+          await tx.auditLog.create({
+            data: {
+              organizationId: session.organizationId,
+              actorUserId: session.userId,
+              action: 'AUTH_REFRESH_REUSE_DETECTED',
+              entityType: 'AuthSession',
+              entityId: session.id,
+              requestId: metadata.requestId,
+              metadata: { sessionFamilyId: session.refreshFamilyId },
+            },
+          });
+        }
+        return false;
+      }
+
+      await tx.authSession.create({
+        data: {
+          userId: session.userId,
+          organizationId: session.organizationId,
+          accessTokenHash: hashToken(nextAccessToken),
+          refreshTokenHash: hashToken(nextRefreshToken),
+          refreshFamilyId: session.refreshFamilyId,
+          accessExpiresAt: nextAccessExpiresAt,
+          refreshExpiresAt: nextRefreshExpiresAt,
+          ...(metadata.userAgent !== undefined ? { userAgent: metadata.userAgent } : {}),
+          ...(metadata.ipHash !== undefined ? { ipHash: metadata.ipHash } : {}),
+        },
+      });
+
+      if (session.organizationId) {
+        await tx.auditLog.create({
+          data: {
+            organizationId: session.organizationId,
+            actorUserId: session.userId,
+            action: 'AUTH_REFRESH_ROTATED',
+            entityType: 'AuthSession',
+            entityId: session.id,
+            requestId: metadata.requestId,
+            metadata: { sessionFamilyId: session.refreshFamilyId },
+          },
+        });
+      }
+      return true;
+    });
+
+    if (!rotated) {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    const user = await this.prisma.user.findUnique({ where: { id: session.userId } });
+    if (!user) {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    return {
+      user: { id: user.id, email: user.email, name: user.name },
+      organizationId: session.organizationId,
+      expiresIn: ACCESS_TOKEN_TTL_SECONDS,
+      accessToken: nextAccessToken,
+      refreshToken: nextRefreshToken,
+    };
+  }
+
   async onModuleDestroy(): Promise<void> {
     await this.prisma.$disconnect();
+  }
+
+  private async revokeRefreshFamily(
+    refreshFamilyId: string,
+    organizationId: string | null,
+    userId: string,
+    metadata: LoginMetadata,
+  ): Promise<void> {
+    await this.prisma.$transaction(async (tx) => {
+      await tx.authSession.updateMany({
+        where: { refreshFamilyId, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
+      if (organizationId) {
+        await tx.auditLog.create({
+          data: {
+            organizationId,
+            actorUserId: userId,
+            action: 'AUTH_REFRESH_REUSE_DETECTED',
+            entityType: 'AuthSession',
+            requestId: metadata.requestId,
+            metadata: { sessionFamilyId: refreshFamilyId },
+          },
+        });
+      }
+    });
   }
 
   private async getDummyPasswordHash(): Promise<string> {
