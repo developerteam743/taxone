@@ -6,7 +6,7 @@ COPY apps/ apps/
 COPY packages/ packages/
 RUN pnpm install --frozen-lockfile
 RUN pnpm --filter @taxone/api build
-RUN pnpm --filter @taxone/api deploy --prod /prod
+RUN pnpm --filter @taxone/api deploy --prod --legacy /prod
 
 FROM node:22-bookworm-slim AS runtime
 ENV NODE_ENV=production
