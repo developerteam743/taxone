@@ -99,7 +99,12 @@ export class AuthController {
       const name = part.slice(0, separator).trim();
       if (name !== REFRESH_TOKEN_COOKIE) continue;
       const value = part.slice(separator + 1).trim();
-      return value.length > 0 ? decodeURIComponent(value) : undefined;
+      if (!value) return undefined;
+      try {
+        return decodeURIComponent(value);
+      } catch {
+        return undefined;
+      }
     }
     return undefined;
   }
