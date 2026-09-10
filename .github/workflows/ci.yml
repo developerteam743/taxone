@@ -12,6 +12,17 @@ jobs:
   foundation:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: taxone
+          POSTGRES_PASSWORD: taxone
+          POSTGRES_DB: taxone
+        ports:
+          - 5432:5432
+    env:
+      DATABASE_URL: postgresql://taxone:taxone@localhost:5432/taxone
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -29,6 +40,10 @@ jobs:
         run: pnpm --filter @taxone/web exec playwright install --with-deps chromium
       - name: Generate Prisma client
         run: pnpm --filter @taxone/database generate
+      - name: Validate Prisma schema
+        run: pnpm --filter @taxone/database exec prisma validate
+      - name: Apply database migrations
+        run: pnpm --filter @taxone/database exec prisma migrate deploy
       - name: Lint
         run: pnpm lint
       - name: Typecheck
