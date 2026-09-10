@@ -14,4 +14,10 @@ export class OrganizationController {
   async getOrganization(@Param('id') organizationId: string, @Req() request: AuthenticatedRequest) {
     return this.organizationService.getByIdForUser(organizationId, request.user.userId);
   }
+
+  @Get(':id/members')
+  @Roles('MEMBER')
+  async listMembers(@Param('id') organizationId: string, @Req() request: AuthenticatedRequest) {
+    return this.organizationService.listMembersForUser(organizationId, request.user.userId);
+  }
 }
