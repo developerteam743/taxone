@@ -7,23 +7,22 @@ const client = { id: 'client-1', organizationId: 'org-1', name: 'Acme Pvt Ltd', 
 const select = { id: true, organizationId: true, name: true, email: true, phone: true, pan: true, createdAt: true, updatedAt: true };
 
 test('lists clients only inside the requested organization and returns a cursor', async () => {
-  const calls: unknown[] = [];
-  const prisma = { client: { findFirst: async (args: unknown) => { calls.push(args); return null; }, findMany: async (args: unknown) => { calls.push(args); return [{ id: 'client-1', organizationId: 'org-1', ...client }, { id: 'client-2', organizationId: 'org-1', ...client, id: 'client-2' }]; } } };
-  assert.deepEqual(await listClientsForOrganization(prisma as never, 'org-1', 1), { items: [{ id: 'client-1', organizationId: 'org-1', ...client }], nextCursor: encodeClientCursor('client-1') });
-  assert.deepEqual(calls[0], undefined); assert.deepEqual(calls[1], { where: { organizationId: 'org-1' }, take: 2, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], select });
+  let findManyArgs: unknown;
+  const prisma = { client: { findMany: async (args: unknown) => { findManyArgs = args; return [client, { ...client, id: 'client-2' }]; } } };
+  assert.deepEqual(await listClientsForOrganization(prisma as never, 'org-1', 1), { items: [client], nextCursor: encodeClientCursor('client-1') });
+  assert.deepEqual(findManyArgs, { where: { organizationId: 'org-1' }, take: 2, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], select });
 });
 
 test('rejects a cursor belonging to another organization', async () => {
   let findManyCalled = false;
-  const prisma = { client: { findFirst: async () => null, findMany: async () => { findManyCalled = true; return []; } } };
+  const prisma = { client: { findFirst: async (args: unknown) => { assert.deepEqual(args, { where: { id: 'other-client', organizationId: 'org-1' }, select: { id: true } }); return null; }, findMany: async () => { findManyCalled = true; return []; } } };
   await assert.rejects(() => listClientsForOrganization(prisma as never, 'org-1', 20, encodeClientCursor('other-client')), BadRequestException); assert.equal(findManyCalled, false);
 });
 
 test('gets only a client owned by the organization', async () => {
   const prisma = { client: { findFirst: async (args: unknown) => { assert.deepEqual(args, { where: { id: 'client-1', organizationId: 'org-1' }, select }); return client; } } };
   assert.deepEqual(await getClientForOrganization(prisma as never, 'org-1', 'client-1'), client);
-  const missing = { client: { findFirst: async () => null } };
-  await assert.rejects(() => getClientForOrganization(missing as never, 'org-1', 'client-other'), NotFoundException);
+  await assert.rejects(() => getClientForOrganization({ client: { findFirst: async () => null } } as never, 'org-1', 'client-other'), NotFoundException);
 });
 
 test('creates a client and audit record transactionally', async () => {
@@ -40,11 +39,12 @@ test('maps duplicate PAN to a tenant-scoped conflict', async () => {
   await assert.rejects(() => createClientForOrganization(prisma as never, 'org-1', { name: 'Duplicate', pan: client.pan }, 'user-1', 'req-2'), ConflictException);
 });
 
-test('updates only a client inside the organization and audits before/after', async () => {
+test('updates only supplied client fields and audits before/after', async () => {
   const updated = { ...client, name: 'Acme Updated' }; const calls: unknown[] = [];
-  const tx = { client: { findFirst: async (args: unknown) => { assert.deepEqual(args, { where: { id: 'client-1', organizationId: 'org-1' }, select }); return client; }, update: async (args: unknown) => { calls.push(args); return updated; } }, auditLog: { create: async (args: unknown) => { calls.push(args); return {}; } } };
+  const tx = { client: { findFirst: async () => client, update: async (args: unknown) => { calls.push(args); return updated; } }, auditLog: { create: async (args: unknown) => { calls.push(args); return {}; } } };
   const prisma = { $transaction: async (callback: (tx: typeof tx) => Promise<unknown>) => callback(tx) };
   assert.deepEqual(await updateClientForOrganization(prisma as never, 'org-1', 'client-1', { name: 'Acme Updated' }, 'user-1', 'req-3'), updated);
+  assert.deepEqual(calls[0], { where: { id: 'client-1' }, data: { name: 'Acme Updated' }, select });
   assert.match(JSON.stringify(calls[1]), /Acme Pvt Ltd/); assert.match(JSON.stringify(calls[1]), /Acme Updated/);
 });
 
@@ -59,7 +59,7 @@ test('deletes a tenant client and writes an audit record', async () => {
   const tx = { client: { findFirst: async () => client, delete: async (args: unknown) => { calls.push(args); return client; } }, auditLog: { create: async (args: unknown) => { calls.push(args); return {}; } } };
   const prisma = { $transaction: async (callback: (tx: typeof tx) => Promise<unknown>) => callback(tx) };
   assert.deepEqual(await deleteClientForOrganization(prisma as never, 'org-1', 'client-1', 'user-1', 'req-5'), { deleted: true, id: 'client-1' });
-  assert.match(JSON.stringify(calls[0]), /client-1/); assert.match(JSON.stringify(calls[1]), /CLIENT_DELETED/);
+  assert.deepEqual(calls[0], { where: { id: 'client-1' } }); assert.match(JSON.stringify(calls[1]), /CLIENT_DELETED/);
 });
 
 test('normalizes and bounds client pagination', () => { assert.equal(normalizeClientPageSize(undefined), 20); assert.equal(normalizeClientPageSize('100'), 100); assert.throws(() => normalizeClientPageSize('0'), BadRequestException); assert.throws(() => normalizeClientPageSize('101'), BadRequestException); assert.throws(() => normalizeClientPageSize('nope'), BadRequestException); });
