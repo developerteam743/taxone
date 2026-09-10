@@ -75,7 +75,7 @@ jobs:
       - name: Build worker image
         run: docker build -f infra/docker/worker.Dockerfile -t taxone-worker:${{ github.sha }} .
       - name: Scan web image
-        uses: aquasecurity/trivy-action@0.31.0
+        uses: aquasecurity/trivy-action@master
         with:
           image-ref: taxone-web:${{ github.sha }}
           format: table
@@ -83,7 +83,7 @@ jobs:
           ignore-unfixed: true
           exit-code: '1'
       - name: Scan API image
-        uses: aquasecurity/trivy-action@0.31.0
+        uses: aquasecurity/trivy-action@master
         with:
           image-ref: taxone-api:${{ github.sha }}
           format: table
@@ -91,7 +91,7 @@ jobs:
           ignore-unfixed: true
           exit-code: '1'
       - name: Scan worker image
-        uses: aquasecurity/trivy-action@0.31.0
+        uses: aquasecurity/trivy-action@master
         with:
           image-ref: taxone-worker:${{ github.sha }}
           format: table
