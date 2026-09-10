@@ -136,3 +136,40 @@ test('refresh fails closed when the token is unknown', async () => {
   assert.equal(created.length, 0);
   assert.equal(audits.length, 0);
 });
+
+test('logout revokes the refresh family and records an audit event', async () => {
+  const refreshToken = 'f'.repeat(64);
+  const existing = session({ refreshTokenHash: hashToken(refreshToken) });
+  const { service, familyRevocations, audits } = makeService({ currentSession: existing });
+
+  await service.logout(refreshToken, metadata);
+
+  assert.equal(familyRevocations.length, 1);
+  assert.deepEqual(familyRevocations[0]?.where, { refreshFamilyId: 'family-1', revokedAt: null });
+  assert.equal(audits.length, 1);
+  assert.equal(audits[0]?.action, 'AUTH_LOGOUT');
+  assert.equal(audits[0]?.entityType, 'AuthSession');
+  assert.equal(audits[0]?.requestId, metadata.requestId);
+  assert.deepEqual(audits[0]?.metadata, { sessionFamilyId: 'family-1' });
+});
+
+test('logout is idempotent for missing or unknown refresh tokens', async () => {
+  const { service, familyRevocations, audits } = makeService({ currentSession: null });
+
+  await service.logout(undefined, metadata);
+  await service.logout('g'.repeat(64), metadata);
+
+  assert.equal(familyRevocations.length, 0);
+  assert.equal(audits.length, 0);
+});
+
+test('logout accepts a previously rotated token and revokes its remaining family sessions', async () => {
+  const refreshToken = 'h'.repeat(64);
+  const existing = session({ refreshTokenHash: hashToken(refreshToken), rotatedAt: new Date(), revokedAt: new Date() });
+  const { service, familyRevocations, audits } = makeService({ currentSession: existing });
+
+  await service.logout(refreshToken, metadata);
+
+  assert.equal(familyRevocations.length, 1);
+  assert.equal(audits[0]?.action, 'AUTH_LOGOUT');
+});
