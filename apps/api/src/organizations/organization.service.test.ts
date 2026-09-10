@@ -22,7 +22,6 @@ test('returns an organization only when the authenticated user is a member', asy
   const organization = { id: 'org-1', name: 'TaxOne Firm', createdAt, updatedAt: createdAt };
   assert.deepEqual(await findOrganizationForUser(prismaFor(organization) as never, 'org-1', 'user-1'), organization);
 });
-
 test('does not disclose organizations outside the authenticated membership boundary', async () => { await assert.rejects(() => findOrganizationForUser(prismaFor(null) as never, 'org-1', 'user-1'), NotFoundException); });
 test('lists only members from an organization the authenticated user belongs to', async () => {
   const createdAt = new Date('2026-09-10T00:00:00.000Z');
@@ -49,36 +48,27 @@ test('creates an organization, owner membership, and audit record in one transac
   const prisma = { $transaction: async (callback: (client: typeof tx) => Promise<unknown>) => callback(tx) }; const result = await createOrganizationForUser(prisma as never, { name: 'New Firm' }, 'user-2', 'req-2');
   assert.deepEqual(result, organization); assert.equal(calls.length, 3); assert.match(calls[1]!, /organizationId.*org-2.*userId.*user-2.*OWNER/); assert.match(calls[2]!, /ORGANIZATION_CREATED.*org-2.*req-2/);
 });
-
 test('updates a member organization and audits the name change transactionally', async () => {
   const before = { id: 'org-1', name: 'Old Firm', createdAt: new Date('2026-09-10T00:00:00.000Z'), updatedAt: new Date('2026-09-10T00:00:00.000Z') };
   const after = { ...before, name: 'Updated Firm' }; const calls: string[] = [];
   const tx = { membership: { findFirst: async (args: unknown) => { assert.deepEqual(args, { where: { organizationId: 'org-1', userId: 'user-1' }, select: { id: true } }); return { id: 'membership-1' }; } }, organization: { findUnique: async (args: unknown) => { assert.deepEqual(args, { where: { id: 'org-1' }, select: { id: true, name: true, createdAt: true, updatedAt: true } }); return before; }, update: async (args: unknown) => { assert.deepEqual(args, { where: { id: 'org-1' }, data: { name: 'Updated Firm' }, select: { id: true, name: true, createdAt: true, updatedAt: true } }); calls.push('update'); return after; } }, auditLog: { create: async (args: unknown) => { assert.deepEqual(args, { data: { organizationId: 'org-1', actorUserId: 'user-1', action: 'ORGANIZATION_UPDATED', entityType: 'Organization', entityId: 'org-1', requestId: 'req-3', metadata: { before: { name: 'Old Firm' }, after: { name: 'Updated Firm' } } } }); calls.push('audit'); return { id: 'audit-1' }; } } };
   const prisma = { $transaction: async (callback: (client: typeof tx) => Promise<unknown>) => callback(tx) }; assert.deepEqual(await updateOrganizationForUser(prisma as never, 'org-1', { name: 'Updated Firm' }, 'user-1', 'req-3'), after); assert.deepEqual(calls, ['update', 'audit']);
 });
-
 test('does not update an organization outside the authenticated membership boundary', async () => {
   const tx = { membership: { findFirst: async () => null }, organization: { findUnique: async () => { throw new Error('must not query organization'); } } };
   const prisma = { $transaction: async (callback: (client: typeof tx) => Promise<unknown>) => callback(tx) };
   await assert.rejects(() => updateOrganizationForUser(prisma as never, 'org-1', { name: 'Updated Firm' }, 'user-1', 'req-3'), NotFoundException);
 });
-
 test('does not create an audit record when organization name is unchanged', async () => {
   const organization = { id: 'org-1', name: 'Same Firm', createdAt: new Date('2026-09-10T00:00:00.000Z'), updatedAt: new Date('2026-09-10T00:00:00.000Z') }; let auditCalled = false;
   const tx = { membership: { findFirst: async () => ({ id: 'membership-1' }) }, organization: { findUnique: async () => organization }, auditLog: { create: async () => { auditCalled = true; return {}; } } };
   const prisma = { $transaction: async (callback: (client: typeof tx) => Promise<unknown>) => callback(tx) };
   assert.deepEqual(await updateOrganizationForUser(prisma as never, 'org-1', { name: 'Same Firm' }, 'user-1', 'req-4'), organization); assert.equal(auditCalled, false);
 });
-
 test('creates a tenant-scoped invitation with a hashed token and audit record', async () => {
   const now = new Date('2026-09-10T00:00:00.000Z'); const calls: unknown[] = [];
   const invitation = { id: 'inv-1', email: 'invitee@example.test', role: 'CA', expiresAt: new Date('2026-09-17T00:00:00.000Z') };
-  const tx = {
-    membership: { findFirst: async (args: unknown) => { assert.deepEqual(args, { where: { organizationId: 'org-1', userId: 'user-1' }, select: { id: true } }); return { id: 'membership-1' }; } },
-    user: { findUnique: async (args: unknown) => { assert.deepEqual(args, { where: { email: 'invitee@example.test' }, select: { id: true } }); return null; } },
-    organizationInvitation: { create: async (args: unknown) => { calls.push(args); return invitation; } },
-    auditLog: { create: async (args: unknown) => { calls.push(args); return { id: 'audit-1' }; } },
-  };
+  const tx = { membership: { findFirst: async (args: unknown) => { assert.deepEqual(args, { where: { organizationId: 'org-1', userId: 'user-1' }, select: { id: true } }); return { id: 'membership-1' }; } }, user: { findUnique: async (args: unknown) => { assert.deepEqual(args, { where: { email: 'invitee@example.test' }, select: { id: true } }); return null; } }, organizationInvitation: { create: async (args: unknown) => { calls.push(args); return invitation; } }, auditLog: { create: async (args: unknown) => { calls.push(args); return { id: 'audit-1' }; } } };
   const prisma = { $transaction: async (callback: (client: typeof tx) => Promise<unknown>) => callback(tx) };
   const result = await createOrganizationInvitationForUser(prisma as never, 'org-1', { email: 'invitee@example.test', role: 'CA' }, 'user-1', 'req-5', now);
   assert.equal(result.id, invitation.id); assert.equal(result.email, invitation.email); assert.equal(result.role, invitation.role); assert.equal(result.expiresAt, invitation.expiresAt); assert.match(result.token, /^[A-Za-z0-9_-]{43}$/);
@@ -86,18 +76,13 @@ test('creates a tenant-scoped invitation with a hashed token and audit record', 
   assert.equal(createArgs.data.tokenHash.length, 64); assert.notEqual(createArgs.data.tokenHash, result.token); assert.equal(createArgs.data.email, 'invitee@example.test'); assert.equal(createArgs.data.organizationId, 'org-1'); assert.equal(createArgs.data.inviterUserId, 'user-1'); assert.equal(createArgs.data.expiresAt, invitation.expiresAt);
   const auditArgs = calls[1] as { data: { action: string; entityType: string; metadata: Record<string, unknown> } }; assert.equal(auditArgs.data.action, 'ORGANIZATION_INVITATION_CREATED'); assert.equal(auditArgs.data.entityType, 'OrganizationInvitation'); assert.equal('token' in auditArgs.data.metadata, false);
 });
-
 test('does not create an invitation outside the authenticated membership boundary', async () => {
   const tx = { membership: { findFirst: async () => null }, user: { findUnique: async () => { throw new Error('must not query user'); } }, organizationInvitation: { create: async () => { throw new Error('must not create invitation'); } }, auditLog: { create: async () => { throw new Error('must not audit invitation'); } } };
   const prisma = { $transaction: async (callback: (client: typeof tx) => Promise<unknown>) => callback(tx) };
   await assert.rejects(() => createOrganizationInvitationForUser(prisma as never, 'org-other', { email: 'invitee@example.test', role: 'MEMBER' }, 'user-1', 'req-6'), NotFoundException);
 });
-
 test('does not invite a user who is already a member of the organization', async () => {
   const tx = { membership: { findFirst: async () => ({ id: 'membership-inviter' }) }, user: { findUnique: async () => ({ id: 'user-2' }) }, organizationInvitation: { create: async () => { throw new Error('must not create invitation'); } }, auditLog: { create: async () => { throw new Error('must not audit invitation'); } } };
-  const prisma = { $transaction: async (callback: (client: typeof tx) => Promise<unknown>) => callback(tx) };
   const membershipPrisma = { ...tx, membership: { findFirst: async (args: unknown) => { if (JSON.stringify(args).includes('user-2')) return { id: 'existing-membership' }; return { id: 'membership-inviter' }; } } };
-  await assert.rejects(() => createOrganizationInvitationForUser(prismaForInvitation(membershipPrisma) as never, 'org-1', { email: 'member@example.test', role: 'MEMBER' }, 'user-1', 'req-7'), ConflictException);
+  await assert.rejects(() => ({ $transaction: async (callback: (client: typeof membershipPrisma) => Promise<unknown>) => callback(membershipPrisma) } as never, 'org-1', { email: 'member@example.test', role: 'MEMBER' }, 'user-1', 'req-7'), ConflictException);
 });
-
-function prismaForInvitation(tx: unknown) { return { $transaction: async (callback: (client: typeof tx) => Promise<unknown>) => callback(tx) }; }
