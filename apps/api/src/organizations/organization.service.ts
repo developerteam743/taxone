@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaClient } from '@taxone/database';
 
 export type OrganizationSummary = {
@@ -32,23 +32,21 @@ export function encodeOrganizationCursor(membershipId: string): string {
 }
 
 export function decodeOrganizationCursor(cursor: string): string {
-  if (cursor.length < 8 || cursor.length > 512) throw new NotFoundException('Invalid organization cursor');
+  if (cursor.length < 8 || cursor.length > 512) throw new BadRequestException('Invalid organization cursor');
   try {
     const decoded = JSON.parse(Buffer.from(cursor, 'base64url').toString('utf8')) as { membershipId?: unknown };
-    if (typeof decoded.membershipId !== 'string' || decoded.membershipId.length < 1 || decoded.membershipId.length > 128) {
-      throw new Error('Invalid cursor');
-    }
+    if (typeof decoded.membershipId !== 'string' || decoded.membershipId.length < 1 || decoded.membershipId.length > 128) throw new Error('Invalid cursor');
     return decoded.membershipId;
   } catch {
-    throw new NotFoundException('Invalid organization cursor');
+    throw new BadRequestException('Invalid organization cursor');
   }
 }
 
 export function normalizeOrganizationPageSize(value: string | undefined): number {
   if (value === undefined) return DEFAULT_PAGE_SIZE;
-  if (!/^\d+$/.test(value)) throw new NotFoundException('Invalid organization page size');
+  if (!/^\d+$/.test(value)) throw new BadRequestException('Invalid organization page size');
   const parsed = Number(value);
-  if (!Number.isSafeInteger(parsed) || parsed < 1 || parsed > MAX_PAGE_SIZE) throw new NotFoundException('Invalid organization page size');
+  if (!Number.isSafeInteger(parsed) || parsed < 1 || parsed > MAX_PAGE_SIZE) throw new BadRequestException('Invalid organization page size');
   return parsed;
 }
 
@@ -63,20 +61,21 @@ export async function findOrganizationForUser(prisma: OrganizationReader, organi
 
 export async function listOrganizationsForUser(prisma: OrganizationReader, userId: string, limit: number, cursor?: string): Promise<OrganizationListResult> {
   const membershipCursor = cursor ? decodeOrganizationCursor(cursor) : undefined;
+  if (membershipCursor) {
+    const cursorMembership = await prisma.membership.findFirst({ where: { id: membershipCursor, userId }, select: { id: true } });
+    if (!cursorMembership) throw new BadRequestException('Invalid organization cursor');
+  }
   const memberships = await prisma.membership.findMany({
     where: { userId },
     ...(membershipCursor ? { cursor: { id: membershipCursor }, skip: 1 } : {}),
     take: limit + 1,
     orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
-    select: { id: true, createdAt: true, organization: { select: { id: true, name: true, createdAt: true, updatedAt: true } } },
+    select: { id: true, organization: { select: { id: true, name: true, createdAt: true, updatedAt: true } } },
   });
 
   const hasNextPage = memberships.length > limit;
   const page = hasNextPage ? memberships.slice(0, limit) : memberships;
-  return {
-    items: page.map(({ organization }) => organization),
-    nextCursor: hasNextPage ? encodeOrganizationCursor(page[page.length - 1]!.id) : null,
-  };
+  return { items: page.map(({ organization }) => organization), nextCursor: hasNextPage ? encodeOrganizationCursor(page[page.length - 1]!.id) : null };
 }
 
 export async function listOrganizationMembersForUser(prisma: OrganizationReader, organizationId: string, userId: string): Promise<OrganizationMember[]> {
@@ -104,22 +103,9 @@ export async function createOrganizationForUser(prisma: OrganizationWriter, inpu
 @Injectable()
 export class OrganizationService {
   private readonly prisma = new PrismaClient();
-
-  async listForUser(userId: string, limit: number, cursor?: string): Promise<OrganizationListResult> {
-    return listOrganizationsForUser(this.prisma, userId, limit, cursor);
-  }
-
-  async getByIdForUser(organizationId: string, userId: string): Promise<OrganizationSummary> {
-    return findOrganizationForUser(this.prisma, organizationId, userId);
-  }
-
-  async listMembersForUser(organizationId: string, userId: string): Promise<OrganizationMember[]> {
-    return listOrganizationMembersForUser(this.prisma, organizationId, userId);
-  }
-
-  async createForUser(input: CreateOrganizationInput, userId: string, requestId: string): Promise<OrganizationCreateResult> {
-    return createOrganizationForUser(this.prisma, input, userId, requestId);
-  }
-
+  async listForUser(userId: string, limit: number, cursor?: string): Promise<OrganizationListResult> { return listOrganizationsForUser(this.prisma, userId, limit, cursor); }
+  async getByIdForUser(organizationId: string, userId: string): Promise<OrganizationSummary> { return findOrganizationForUser(this.prisma, organizationId, userId); }
+  async listMembersForUser(organizationId: string, userId: string): Promise<OrganizationMember[]> { return listOrganizationMembersForUser(this.prisma, organizationId, userId); }
+  async createForUser(input: CreateOrganizationInput, userId: string, requestId: string): Promise<OrganizationCreateResult> { return createOrganizationForUser(this.prisma, input, userId, requestId); }
   async onModuleDestroy(): Promise<void> { await this.prisma.$disconnect(); }
 }
