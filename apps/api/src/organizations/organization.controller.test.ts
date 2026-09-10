@@ -3,6 +3,25 @@ import test from 'node:test';
 import { BadRequestException } from '@nestjs/common';
 import { OrganizationController } from './organization.controller.js';
 
+test('organization list uses authenticated user context and pagination inputs', async () => {
+  const calls: Array<{ userId: string; limit: number; cursor?: string }> = [];
+  const service = { listForUser: async (userId: string, limit: number, cursor?: string) => { calls.push({ userId, limit, ...(cursor ? { cursor } : {}) }); return { items: [], nextCursor: null }; } };
+  const controller = new OrganizationController(service as never);
+  const request = { user: { userId: 'user-1', organizationId: 'org-1', sessionId: 'session-1' } };
+  const result = await controller.listOrganizations(request as never, '25', 'cursor-1');
+  assert.deepEqual(calls, [{ userId: 'user-1', limit: 25, cursor: 'cursor-1' }]);
+  assert.deepEqual(result, { items: [], nextCursor: null });
+});
+
+test('organization list rejects invalid page size before calling the service', async () => {
+  let called = false;
+  const service = { listForUser: async () => { called = true; } };
+  const controller = new OrganizationController(service as never);
+  const request = { user: { userId: 'user-1', organizationId: 'org-1', sessionId: 'session-1' } };
+  await assert.rejects(() => controller.listOrganizations(request as never, '101', undefined), BadRequestException);
+  assert.equal(called, false);
+});
+
 test('organization lookup uses the authenticated user context', async () => {
   const calls: Array<{ organizationId: string; userId: string }> = [];
   const service = { getByIdForUser: async (organizationId: string, userId: string) => { calls.push({ organizationId, userId }); return { id: organizationId, name: 'TaxOne Firm' }; } };
