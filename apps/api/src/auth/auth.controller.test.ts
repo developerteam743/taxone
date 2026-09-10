@@ -2,8 +2,6 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { AuthController } from './auth.controller.js';
 
-const metadata = { requestId: 'req-test', userAgent: 'test-agent', ipHash: 'test-ip-hash' };
-
 function makeResponse(cookieHeader?: string) {
   const cookies: Array<{ name: string; value: string; options: Record<string, unknown> }> = [];
   const cleared: Array<{ name: string; options: Record<string, unknown> }> = [];
@@ -26,10 +24,13 @@ function makeResponse(cookieHeader?: string) {
 }
 
 test('logout revokes the refresh family and clears both auth cookies', async () => {
-  const calls: Array<{ token: string | undefined; metadata: typeof metadata }> = [];
+  const calls: Array<{ token: string | undefined; requestId: string; userAgent?: string; ipHash?: string }> = [];
   const service = {
-    logout: async (token: string | undefined, requestMetadata: typeof metadata) => {
-      calls.push({ token, metadata: requestMetadata });
+    logout: async (
+      token: string | undefined,
+      requestMetadata: { requestId: string; userAgent?: string; ipHash?: string },
+    ) => {
+      calls.push({ token, ...requestMetadata });
     },
   };
   const controller = new AuthController(service as never);
@@ -38,10 +39,12 @@ test('logout revokes the refresh family and clears both auth cookies', async () 
   const result = await controller.logout('req-test', 'test-agent', response as never);
 
   assert.equal(result, undefined);
-  assert.deepEqual(calls, [{
-    token: 'refresh-token-value',
-    metadata,
-  }]);
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0]?.token, 'refresh-token-value');
+  assert.equal(calls[0]?.requestId, 'req-test');
+  assert.equal(calls[0]?.userAgent, 'test-agent');
+  assert.equal(typeof calls[0]?.ipHash, 'string');
+  assert.equal(calls[0]?.ipHash?.length, 64);
   assert.equal(cleared.length, 2);
   assert.deepEqual(cleared[0], {
     name: 'taxone_access',
