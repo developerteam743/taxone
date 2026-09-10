@@ -1,0 +1,543 @@
+# TAXONE — MASTER SESSION RESUME PROMPT
+
+You are continuing development of the **TaxOne** project.
+
+Repository:
+`developerteam743/taxone`
+
+Your job is to **continue from the exact current state of the GitHub repository** and never assume the project is empty, complete, or at an earlier stage.
+
+## 1. FIRST ACTION — INSPECT EVERYTHING
+
+Before writing, modifying, deleting, or creating any code:
+
+1. Inspect the current GitHub repository tree.
+
+2. Inspect the current branch and latest commit.
+
+3. Read all existing project files that are relevant to the current implementation.
+
+4. Read these blueprint files first if they exist:
+
+   * `00_MASTER_PROJECT_BLUEPRINT.md`
+   * `01_REQUIREMENTS.md`
+   * `02_TECH_STACK.md`
+   * `03_API_REQUIREMENTS.md`
+   * `04_DATABASE_BLUEPRINT.md`
+   * `05_AI_OCR_BLUEPRINT.md`
+   * `06_INTEGRATION_BLUEPRINT.md`
+   * `07_SECURITY_CHECKLIST.md`
+   * `08_TEST_PLAN.md`
+   * `09_PRODUCTION_RUNBOOK.md`
+   * `10_MASTER_AI_CODING_PROMPT.md`
+   * `11_ROADMAP.md`
+   * `12_UI_SCREENS.md`
+
+5. Inspect existing implementation and determine:
+
+   * what is completed
+   * what is partially completed
+   * what is broken
+   * what is missing
+   * what was most recently changed
+   * what should be done next
+
+Do **not** recreate existing work.
+
+## 2. CONTINUATION RULE
+
+The GitHub repository is the source of truth.
+
+Continue from the **latest actual repository state**.
+
+Never assume that the previous AI session completed a task merely because it was requested.
+
+Verify the actual code, files, commits, tests, migrations and configuration before continuing.
+
+If previous work is incomplete, continue it.
+
+If previous work is incorrect, fix it.
+
+If previous work conflicts with the blueprint, follow the blueprint unless there is a strong technical reason to update the blueprint.
+
+## 3. PROJECT GOAL
+
+Build a production-grade, original Indian CA/tax/accounting SaaS inspired by the workflow of modern accounting automation products.
+
+Core flow:
+
+Client/CA
+→ document upload / email / WhatsApp / integration
+→ secure document intake
+→ OCR / parsing
+→ AI extraction
+→ validation
+→ human review
+→ ledger/account mapping
+→ accounting
+→ approval
+→ GST
+→ reconciliation
+→ filing preparation
+→ integrations
+→ reporting
+→ audit trail
+
+Do NOT copy competitor proprietary code, branding, UI assets, text or implementation.
+
+Build an original product.
+
+## 4. REQUIRED ENGINEERING STANDARD
+
+Production quality is mandatory.
+
+Every feature must consider:
+
+* authentication
+* authorization
+* RBAC
+* tenant isolation
+* DTO/schema validation
+* error handling
+* audit trail
+* idempotency where required
+* database transactions
+* security
+* logging
+* observability
+* tests
+* documentation
+* migrations
+* rollback strategy
+* performance
+* failure/retry handling
+
+Never implement only a demo version when production architecture is reasonably possible.
+
+## 5. SECURITY RULES
+
+Never:
+
+* trust client-side authorization
+* allow cross-tenant access
+* store secrets in source control
+* expose passwords/tokens/API keys
+* use unrestricted file uploads
+* allow unrestricted LLM database writes
+* silently modify posted financial records
+* create duplicate financial transactions
+* bypass approval requirements
+* fake GST filing success
+* scrape government portals without appropriate approval/legal review
+
+Use:
+
+* secure authentication
+* short-lived access tokens
+* refresh rotation/revocation
+* secure cookies/BFF where appropriate
+* MFA
+* Argon2id
+* rate limiting
+* brute-force protection
+* RBAC
+* tenant guards
+* object-level authorization
+* MIME validation
+* malware scanning
+* private object storage
+* signed URLs
+* encryption
+* audit logs
+* request IDs
+* secret/PII redaction
+* dependency scanning
+* container scanning
+* secret scanning
+* backup and restore testing
+
+## 6. FINANCIAL DATA RULES
+
+Financial correctness has priority over convenience.
+
+Enforce:
+
+* debit = credit
+* deterministic calculations
+* decimal-safe monetary values
+* idempotent financial writes
+* transactional posting
+* immutable/append-oriented posted records
+* reversal/correction instead of silent mutation
+* financial-period locking
+* safe invoice numbering
+* audit event for critical mutations
+* tenant/business boundaries
+
+Never allow AI output to become accounting truth without deterministic validation and the configured approval policy.
+
+## 7. AI/OCR RULES
+
+AI is an assistant, not the accounting authority.
+
+Every extracted field should support:
+
+* value
+* normalized value
+* confidence
+* source
+* model/provider
+* model version
+* document/page location where available
+* verification state
+* reviewer
+* verification timestamp
+
+AI processing must use structured output and schema validation.
+
+Accounting calculations must be deterministic.
+
+AI actions must be auditable.
+
+## 8. ARCHITECTURE
+
+Preferred stack:
+
+Frontend:
+
+* Next.js
+* TypeScript
+* Tailwind CSS
+* accessible UI components
+* TanStack Query
+* React Hook Form
+* Zod
+* Playwright
+
+Backend:
+
+* NestJS
+* TypeScript
+* Prisma
+* PostgreSQL
+* Redis
+* BullMQ
+* OpenAPI/Swagger
+
+AI/OCR:
+
+* Python
+* FastAPI
+* OCR abstraction
+* PDF parser
+* vision/LLM provider abstraction
+* deterministic post-processing
+
+Storage:
+
+* S3-compatible object storage
+* private buckets
+* signed URLs
+* lifecycle policies
+
+Infrastructure:
+
+* Docker
+* CI/CD
+* managed PostgreSQL/Redis where appropriate
+* secrets manager
+* centralized logs
+* metrics
+* alerts
+
+Use adapters/interfaces for external integrations.
+
+## 9. INTEGRATIONS
+
+Architecture must support:
+
+* Tally
+* Vyapar
+* Excel
+* CSV
+* GST providers/APIs
+* e-invoice
+* e-way bill
+* WhatsApp Business
+* email
+* S3-compatible storage
+
+Never tightly couple business logic to a single provider.
+
+## 10. TENANCY
+
+Organization is the tenant boundary.
+
+Every tenant-owned query must be scoped correctly.
+
+Every tenant-owned resource must have a direct or rigorously enforced organization relationship.
+
+Test cross-tenant access explicitly.
+
+A user must never be able to access another organization's:
+
+* clients
+* businesses
+* documents
+* accounting records
+* GST data
+* integrations
+* credentials
+* reports
+* tasks
+* communications
+* audit data
+
+## 11. DEVELOPMENT PROCESS
+
+For every new feature:
+
+### Before coding
+
+Determine:
+
+1. business requirement
+2. data model
+3. API contract
+4. authorization model
+5. tenant boundary
+6. validation rules
+7. failure modes
+8. audit requirements
+9. idempotency requirements
+10. tests required
+11. observability requirements
+
+### Then implement
+
+* database migration
+* backend
+* validation
+* authorization
+* frontend
+* background jobs if required
+* integrations if required
+* tests
+* documentation
+* observability
+
+## 12. TESTING
+
+Before considering a feature complete, run appropriate:
+
+* lint
+* typecheck
+* unit tests
+* integration tests
+* database/migration validation
+* E2E tests
+* security tests
+* build
+
+Critical tests must cover:
+
+* tenant isolation
+* authorization
+* IDOR
+* duplicate prevention
+* financial invariants
+* locked periods
+* audit trail
+* upload security
+* webhook security
+* authentication/session security
+* GST validation
+
+Never claim tests pass unless they actually pass.
+
+## 13. CURRENT WORK DETECTION
+
+At the beginning of every session, determine the current implementation phase from the repository.
+
+Preferred progression:
+
+### Phase 1
+
+Foundation:
+
+* repository architecture
+* database
+* authentication
+* tenant/RBAC
+* API conventions
+* UI shell
+* audit
+* observability
+
+### Phase 2
+
+Clients and documents:
+
+* clients
+* businesses
+* GST registrations
+* uploads
+* storage
+* malware scanning
+* document processing
+
+### Phase 3
+
+AI:
+
+* OCR
+* invoice extraction
+* bank extraction
+* confidence
+* review queue
+* ledger suggestions
+
+### Phase 4
+
+Accounting:
+
+* ledgers
+* invoices
+* purchases
+* payments
+* journals
+* reconciliation
+* reports
+* idempotency
+
+### Phase 5
+
+GST:
+
+* rule engine
+* GSTR-1
+* GSTR-3B
+* GSTR-2B
+* ITC
+* reconciliation
+* mismatches
+
+### Phase 6
+
+Integrations:
+
+* Excel
+* Tally
+* Vyapar
+* GST providers
+* webhooks
+
+### Phase 7
+
+Practice automation:
+
+* client portal
+* tasks
+* reminders
+* WhatsApp
+* email
+
+### Phase 8
+
+Advanced AI:
+
+* accounting assistant
+* GST assistant
+* anomaly detection
+* natural-language reporting
+* notice assistant
+
+### Phase 9
+
+Production:
+
+* load testing
+* security testing
+* disaster recovery
+* backup restore
+* monitoring
+* billing
+* support tooling
+
+Do not jump randomly between phases unless the repository state or a critical dependency requires it.
+
+## 14. SESSION HANDOFF
+
+At the beginning of the session, identify the **last completed meaningful work** from:
+
+* latest commits
+* changed files
+* TODOs
+* roadmap
+* tests
+* migrations
+* incomplete implementations
+
+Then continue from there.
+
+At the end of your work, provide a concise handoff containing:
+
+### Completed
+
+What was actually implemented.
+
+### Changed
+
+Files/modules changed.
+
+### Verified
+
+Tests/build/typecheck/security checks actually run and their results.
+
+### Remaining
+
+What is still incomplete.
+
+### Next Step
+
+The single most logical next implementation task.
+
+This handoff must describe the actual repository state, not intentions.
+
+## 15. GITHUB RULES
+
+Always work against the actual repository.
+
+Before editing a file, inspect its current content.
+
+After making changes, verify the resulting repository state.
+
+Never overwrite unrelated user work.
+
+Never delete files unless explicitly required.
+
+Never reset or recreate the project unnecessarily.
+
+Preserve existing functionality unless there is a clear reason to change it.
+
+## 16. IMPORTANT
+
+You are NOT starting a new project.
+
+You are **resuming an existing project**.
+
+Do not ask me to repeat information that can be obtained from the repository.
+
+Do not generate a theoretical plan and stop.
+
+Inspect → understand → implement → test → verify → report.
+
+If the previous session stopped halfway through a feature, finish that feature before starting unrelated work.
+
+If you discover a serious architectural/security problem while implementing the current task, fix it when it is directly relevant rather than knowingly building on a broken foundation.
+
+Always prioritize:
+
+**Correctness → Security → Data integrity → Tenant isolation → Production reliability → Tests → UX → Speed of implementation.**
+
+START NOW BY INSPECTING THE CURRENT REPOSITORY STATE AND IDENTIFYING EXACTLY WHERE THE PREVIOUS SESSION LEFT OFF.
