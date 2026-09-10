@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { Controller, Get, Module, MiddlewareConsumer, NestMiddleware, RequestMethod } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import helmet from 'helmet';
-import { Logger } from 'nestjs-pino';
+import { Logger, LoggerModule } from 'nestjs-pino';
 import type { Request, Response, NextFunction } from 'express';
 import { ApiExceptionFilter } from './common/api-exception.filter.js';
 
@@ -22,7 +22,10 @@ class HealthController {
   @Get('ready') ready() { return { status: 'ready' }; }
 }
 
-@Module({ controllers: [HealthController] })
+@Module({
+  imports: [LoggerModule.forRoot({ pinoHttp: { level: process.env.LOG_LEVEL ?? 'info' } })],
+  controllers: [HealthController],
+})
 class AppModule {
   configure(consumer: MiddlewareConsumer) { consumer.apply(RequestIdMiddleware).forRoutes({ path: '*', method: RequestMethod.ALL }); }
 }
