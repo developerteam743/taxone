@@ -17,6 +17,7 @@ export type OrganizationMember = {
 };
 
 type OrganizationReader = Pick<PrismaClient, 'organization' | 'membership'>;
+type OrganizationWriter = Pick<PrismaClient, '$transaction'>;
 
 export async function findOrganizationForUser(prisma: OrganizationReader, organizationId: string, userId: string): Promise<OrganizationSummary> {
   const organization = await prisma.organization.findFirst({
@@ -37,6 +38,19 @@ export async function listOrganizationMembersForUser(prisma: OrganizationReader,
   });
 }
 
+export type CreateOrganizationInput = { name: string };
+
+type OrganizationCreateResult = OrganizationSummary;
+
+export async function createOrganizationForUser(prisma: OrganizationWriter, input: CreateOrganizationInput, userId: string, requestId: string): Promise<OrganizationCreateResult> {
+  return prisma.$transaction(async (tx) => {
+    const organization = await tx.organization.create({ data: { name: input.name }, select: { id: true, name: true, createdAt: true, updatedAt: true } });
+    await tx.membership.create({ data: { organizationId: organization.id, userId, role: 'OWNER' } });
+    await tx.auditLog.create({ data: { organizationId: organization.id, actorUserId: userId, action: 'ORGANIZATION_CREATED', entityType: 'Organization', entityId: organization.id, requestId, metadata: { name: organization.name } } });
+    return organization;
+  });
+}
+
 @Injectable()
 export class OrganizationService {
   private readonly prisma = new PrismaClient();
@@ -47,6 +61,10 @@ export class OrganizationService {
 
   async listMembersForUser(organizationId: string, userId: string): Promise<OrganizationMember[]> {
     return listOrganizationMembersForUser(this.prisma, organizationId, userId);
+  }
+
+  async createForUser(input: CreateOrganizationInput, userId: string, requestId: string): Promise<OrganizationCreateResult> {
+    return createOrganizationForUser(this.prisma, input, userId, requestId);
   }
 
   async onModuleDestroy(): Promise<void> { await this.prisma.$disconnect(); }
