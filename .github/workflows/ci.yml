@@ -58,3 +58,44 @@ jobs:
         run: pnpm build
       - name: Test
         run: pnpm test
+
+  container-scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: foundation
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Build web image
+        run: docker build -f infra/docker/web.Dockerfile -t taxone-web:${{ github.sha }} .
+      - name: Build API image
+        run: docker build -f infra/docker/api.Dockerfile -t taxone-api:${{ github.sha }} .
+      - name: Build worker image
+        run: docker build -f infra/docker/worker.Dockerfile -t taxone-worker:${{ github.sha }} .
+      - name: Scan web image
+        uses: aquasecurity/trivy-action@0.31.0
+        with:
+          image-ref: taxone-web:${{ github.sha }}
+          format: table
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: '1'
+      - name: Scan API image
+        uses: aquasecurity/trivy-action@0.31.0
+        with:
+          image-ref: taxone-api:${{ github.sha }}
+          format: table
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: '1'
+      - name: Scan worker image
+        uses: aquasecurity/trivy-action@0.31.0
+        with:
+          image-ref: taxone-worker:${{ github.sha }}
+          format: table
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: '1'
