@@ -35,7 +35,7 @@ jobs:
         with:
           node-version: 22
       - name: Install dependencies
-        run: pnpm install --no-frozen-lockfile
+        run: pnpm install --frozen-lockfile
       - name: Dependency vulnerability scan
         run: pnpm audit --audit-level high
       - name: Secret scan
