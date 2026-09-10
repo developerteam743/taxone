@@ -1,13 +1,16 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaClient } from '@taxone/database';
+import { createOpaqueToken, expiresAtFromSeconds, hashToken } from '../auth/session-token.js';
 
 export type OrganizationSummary = { id: string; name: string; createdAt: Date; updatedAt: Date };
 export type OrganizationMember = { id: string; userId: string; role: string; user: { id: string; email: string; name: string }; createdAt: Date };
 export type OrganizationListResult = { items: OrganizationSummary[]; nextCursor: string | null };
+export type OrganizationInvitationResult = { id: string; email: string; role: string; expiresAt: Date; token: string };
 type OrganizationReader = Pick<PrismaClient, 'organization' | 'membership'>;
 type OrganizationWriter = Pick<PrismaClient, '$transaction'>;
 const DEFAULT_PAGE_SIZE = 20;
 const MAX_PAGE_SIZE = 100;
+export const ORGANIZATION_INVITATION_TTL_SECONDS = 7 * 24 * 60 * 60;
 
 export function encodeOrganizationCursor(membershipId: string): string { return Buffer.from(JSON.stringify({ membershipId }), 'utf8').toString('base64url'); }
 export function decodeOrganizationCursor(cursor: string): string {
@@ -76,6 +79,27 @@ export async function updateOrganizationForUser(prisma: OrganizationWriter, orga
   });
 }
 
+export type CreateOrganizationInvitationInput = { email: string; role: 'ADMIN' | 'CA' | 'MEMBER' | 'CLIENT' };
+
+type InvitationWriter = Pick<PrismaClient, '$transaction'>;
+export async function createOrganizationInvitationForUser(prisma: InvitationWriter, organizationId: string, input: CreateOrganizationInvitationInput, inviterUserId: string, requestId: string, now = new Date()): Promise<OrganizationInvitationResult> {
+  const token = createOpaqueToken(32);
+  const tokenHash = hashToken(token);
+  const expiresAt = expiresAtFromSeconds(ORGANIZATION_INVITATION_TTL_SECONDS, now);
+  return prisma.$transaction(async (tx) => {
+    const membership = await tx.membership.findFirst({ where: { organizationId, userId: inviterUserId }, select: { id: true } });
+    if (!membership) throw new NotFoundException('Organization not found');
+    const existingUser = await tx.user.findUnique({ where: { email: input.email }, select: { id: true } });
+    if (existingUser) {
+      const existingMembership = await tx.membership.findFirst({ where: { organizationId, userId: existingUser.id }, select: { id: true } });
+      if (existingMembership) throw new ConflictException('User is already a member of this organization');
+    }
+    const invitation = await tx.organizationInvitation.create({ data: { organizationId, inviterUserId, email: input.email, role: input.role, tokenHash, expiresAt }, select: { id: true, email: true, role: true, expiresAt: true } });
+    await tx.auditLog.create({ data: { organizationId, actorUserId: inviterUserId, action: 'ORGANIZATION_INVITATION_CREATED', entityType: 'OrganizationInvitation', entityId: invitation.id, requestId, metadata: { email: invitation.email, role: invitation.role, expiresAt: invitation.expiresAt.toISOString() } } });
+    return { ...invitation, token };
+  });
+}
+
 @Injectable()
 export class OrganizationService {
   private readonly prisma = new PrismaClient();
@@ -84,5 +108,6 @@ export class OrganizationService {
   async listMembersForUser(organizationId: string, userId: string): Promise<OrganizationMember[]> { return listOrganizationMembersForUser(this.prisma, organizationId, userId); }
   async createForUser(input: CreateOrganizationInput, userId: string, requestId: string): Promise<OrganizationCreateResult> { return createOrganizationForUser(this.prisma, input, userId, requestId); }
   async updateForUser(organizationId: string, input: UpdateOrganizationInput, userId: string, requestId: string): Promise<OrganizationSummary> { return updateOrganizationForUser(this.prisma, organizationId, input, userId, requestId); }
+  async createInvitationForUser(organizationId: string, input: CreateOrganizationInvitationInput, inviterUserId: string, requestId: string): Promise<OrganizationInvitationResult> { return createOrganizationInvitationForUser(this.prisma, organizationId, input, inviterUserId, requestId); }
   async onModuleDestroy(): Promise<void> { await this.prisma.$disconnect(); }
 }
