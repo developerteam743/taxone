@@ -10,6 +10,8 @@ import { AuthService } from './auth/auth.service.js';
 import { MfaService } from './auth/mfa-service.js';
 import { AccessTokenGuard } from './auth/access-token.guard.js';
 import { RolesGuard } from './auth/roles.guard.js';
+import { OrganizationController } from './organizations/organization.controller.js';
+import { OrganizationService } from './organizations/organization.service.js';
 
 class RequestIdMiddleware implements NestMiddleware {
   use(req: Request, res: Response, next: NextFunction) {
@@ -35,8 +37,8 @@ class HealthController {
       redact: { paths: ['req.headers.authorization', 'req.headers.cookie', 'req.headers.x-api-key', 'req.headers.x-auth-token', 'password', 'passwordHash', 'token', 'accessToken', 'refreshToken', 'challengeToken', 'secret', 'encryptedSecret', 'apiKey'], censor: '[REDACTED]' },
     },
   })],
-  controllers: [HealthController, AuthController],
-  providers: [AuthService, MfaService, AccessTokenGuard, RolesGuard],
+  controllers: [HealthController, AuthController, OrganizationController],
+  providers: [AuthService, MfaService, AccessTokenGuard, RolesGuard, OrganizationService],
 })
 class AppModule {
   configure(consumer: MiddlewareConsumer) { consumer.apply(RequestIdMiddleware).forRoutes({ path: '*', method: RequestMethod.ALL }); }
