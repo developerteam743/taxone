@@ -10,11 +10,7 @@ import type { LoginMetadata, LoginResult } from './auth.service.js';
 export const MFA_CHALLENGE_TTL_SECONDS = 5 * 60;
 export const MFA_RECOVERY_CODE_COUNT = 10;
 
-export type MfaEnrollment = {
-  secret: string;
-  otpauthUri: string;
-  recoveryCodes: string[];
-};
+export type MfaEnrollment = { secret: string; otpauthUri: string; recoveryCodes: string[] };
 
 @Injectable()
 export class MfaService {
@@ -25,15 +21,10 @@ export class MfaService {
     if (!user) throw new UnauthorizedException('User not found');
     const existing = await this.prisma.mfaCredential.findUnique({ where: { userId: user.id } });
     if (existing?.enabledAt && !existing.disabledAt) throw new UnauthorizedException('MFA is already enabled');
-
     const secret = generateTotpSecret();
     const recoveryCodes = Array.from({ length: MFA_RECOVERY_CODE_COUNT }, () => generateRecoveryCode());
     const encryptedSecret = encryptMfaSecret(secret);
-    await this.prisma.mfaCredential.upsert({
-      where: { userId: user.id },
-      create: { userId: user.id, encryptedSecret },
-      update: { encryptedSecret, enabledAt: null, disabledAt: null, recoveryCodes: { deleteMany: {} } },
-    });
+    await this.prisma.mfaCredential.upsert({ where: { userId: user.id }, create: { userId: user.id, encryptedSecret }, update: { encryptedSecret, enabledAt: null, disabledAt: null, recoveryCodes: { deleteMany: {} } } });
     const credential = await this.prisma.mfaCredential.findUniqueOrThrow({ where: { userId: user.id } });
     await this.prisma.mfaRecoveryCode.createMany({ data: await Promise.all(recoveryCodes.map(async (code) => ({ credentialId: credential.id, codeHash: await hashPassword(code) }))) });
     return { secret, otpauthUri: buildTotpUri(secret, user.email, 'TaxOne'), recoveryCodes };
@@ -60,7 +51,9 @@ export class MfaService {
   }
 
   async completeChallenge(challengeToken: string, code: string, metadata: LoginMetadata): Promise<LoginResult> {
-    if (typeof challengeToken !== 'string' || challengeToken.length < 32 || !/^\d{6}$/.test(code)) throw new UnauthorizedException('Invalid MFA challenge');
+    const codeIsTotp = /^\d{6}$/.test(code);
+    const codeIsRecovery = /^[A-Za-z0-9]{12}$/.test(code);
+    if (typeof challengeToken !== 'string' || challengeToken.length < 32 || challengeToken.length > 256 || (!codeIsTotp && !codeIsRecovery)) throw new UnauthorizedException('Invalid MFA challenge');
     const challenge = await this.prisma.mfaChallenge.findUnique({ where: { tokenHash: hashToken(challengeToken) } });
     if (!challenge || challenge.consumedAt || challenge.expiresAt <= new Date()) throw new UnauthorizedException('Invalid MFA challenge');
     const credential = await this.prisma.mfaCredential.findUnique({ where: { userId: challenge.userId } });
@@ -68,9 +61,9 @@ export class MfaService {
     let secret: string;
     try { secret = decryptMfaSecret(credential.encryptedSecret); } catch { throw new UnauthorizedException('MFA is unavailable'); }
 
-    const totpValid = verifyTotpCode(secret, code);
+    const totpValid = codeIsTotp && verifyTotpCode(secret, code);
     let recoveryId: string | undefined;
-    if (!totpValid) {
+    if (!totpValid && codeIsRecovery) {
       const candidates = await this.prisma.mfaRecoveryCode.findMany({ where: { credentialId: credential.id, consumedAt: null } });
       for (const candidate of candidates) if (await verifyPassword(code, candidate.codeHash)) { recoveryId = candidate.id; break; }
     }
