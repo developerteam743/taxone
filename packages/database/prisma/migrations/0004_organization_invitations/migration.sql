@@ -1,3 +1,9 @@
+CREATE TYPE "Role" AS ENUM ('OWNER', 'ADMIN', 'CA', 'MEMBER', 'CLIENT');
+
+ALTER TABLE "Membership" ALTER COLUMN "role" DROP DEFAULT;
+ALTER TABLE "Membership" ALTER COLUMN "role" TYPE "Role" USING "role"::"Role";
+ALTER TABLE "Membership" ALTER COLUMN "role" SET DEFAULT 'MEMBER'::"Role";
+
 CREATE TABLE "OrganizationInvitation" (
   "id" TEXT NOT NULL,
   "organizationId" TEXT NOT NULL,
