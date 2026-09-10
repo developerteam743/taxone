@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { apiError } from './api-error.ts';
+import { apiError } from './api-error.js';
 
 test('apiError returns a stable machine-readable shape', () => {
   assert.deepEqual(apiError('VALIDATION_ERROR', 'Request validation failed.', 'req-123'), {
