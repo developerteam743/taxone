@@ -12,7 +12,7 @@ const COOKIE_OPTIONS = { httpOnly: true, secure: true, sameSite: 'strict' as con
 
 @Controller('api/v1/auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService, private readonly mfaService: MfaService = new MfaService()) {}
+  constructor(private readonly authService: AuthService, private readonly mfaService: MfaService) {}
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
