@@ -64,8 +64,8 @@ export class AuthService {
           refreshFamilyId,
           accessExpiresAt,
           refreshExpiresAt,
-          userAgent: metadata.userAgent,
-          ipHash: metadata.ipHash,
+          ...(metadata.userAgent !== undefined ? { userAgent: metadata.userAgent } : {}),
+          ...(metadata.ipHash !== undefined ? { ipHash: metadata.ipHash } : {}),
         },
       });
 
