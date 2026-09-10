@@ -1,0 +1,8 @@
+{
+  "name": "@taxone/api",
+  "private": true,
+  "type": "module",
+  "scripts": {"dev": "tsx watch src/main.ts", "build": "tsc", "typecheck": "tsc --noEmit", "lint": "eslint .", "test": "node --test"},
+  "dependencies": {"@nestjs/common": "^11.1.6", "@nestjs/core": "^11.1.6", "@nestjs/platform-express": "^11.1.6", "helmet": "^8.1.0", "pino": "^9.9.0", "nestjs-pino": "^4.4.0", "uuid": "^11.1.0"},
+  "devDependencies": {"tsx": "^4.20.5", "typescript": "^5.9.2", "@types/node": "^24.3.0"}
+}

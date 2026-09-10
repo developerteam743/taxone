@@ -1,0 +1,8 @@
+{
+  "name": "@taxone/worker",
+  "private": true,
+  "type": "module",
+  "scripts": {"dev": "tsx watch src/main.ts", "build": "tsc", "typecheck": "tsc --noEmit", "lint": "eslint .", "test": "node --test"},
+  "dependencies": {"bullmq": "^5.58.0", "ioredis": "^5.7.0"},
+  "devDependencies": {"tsx": "^4.20.5", "typescript": "^5.9.2", "@types/node": "^24.3.0"}
+}
