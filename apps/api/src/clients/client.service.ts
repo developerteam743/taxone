@@ -4,6 +4,7 @@ import { PrismaClient } from '@taxone/database';
 export type ClientSummary = { id: string; organizationId: string; name: string; email: string | null; phone: string | null; pan: string | null; createdAt: Date; updatedAt: Date };
 export type ClientListResult = { items: ClientSummary[]; nextCursor: string | null };
 export type ClientInput = { name: string; email?: string; phone?: string; pan?: string };
+export type ClientUpdateInput = { name?: string; email?: string; phone?: string; pan?: string };
 
 type ClientReader = Pick<PrismaClient, 'client'>;
 type ClientWriter = Pick<PrismaClient, '$transaction'>;
@@ -35,13 +36,7 @@ export async function listClientsForOrganization(prisma: ClientReader, organizat
     const validCursor = await prisma.client.findFirst({ where: { id: clientCursor, organizationId }, select: { id: true } });
     if (!validCursor) throw new BadRequestException('Invalid client cursor');
   }
-  const clients = await prisma.client.findMany({
-    where: { organizationId },
-    ...(clientCursor ? { cursor: { id: clientCursor }, skip: 1 } : {}),
-    take: limit + 1,
-    orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
-    select: clientSelect,
-  });
+  const clients = await prisma.client.findMany({ where: { organizationId }, ...(clientCursor ? { cursor: { id: clientCursor }, skip: 1 } : {}), take: limit + 1, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], select: clientSelect });
   const hasNextPage = clients.length > limit;
   const page = hasNextPage ? clients.slice(0, limit) : clients;
   return { items: page, nextCursor: hasNextPage ? encodeClientCursor(page[page.length - 1]!.id) : null };
@@ -66,12 +61,18 @@ export async function createClientForOrganization(prisma: ClientWriter, organiza
   });
 }
 
-export async function updateClientForOrganization(prisma: ClientWriter, organizationId: string, clientId: string, input: ClientInput, actorUserId: string, requestId: string): Promise<ClientSummary> {
+export async function updateClientForOrganization(prisma: ClientWriter, organizationId: string, clientId: string, input: ClientUpdateInput, actorUserId: string, requestId: string): Promise<ClientSummary> {
   return prisma.$transaction(async (tx) => {
     const existing = await tx.client.findFirst({ where: { id: clientId, organizationId }, select: clientSelect });
     if (!existing) throw new NotFoundException('Client not found');
     try {
-      const client = await tx.client.update({ where: { id: clientId }, data: { name: input.name, email: input.email ?? null, phone: input.phone ?? null, pan: input.pan ?? null }, select: clientSelect });
+      const data = {
+        ...(input.name !== undefined ? { name: input.name } : {}),
+        ...(input.email !== undefined ? { email: input.email } : {}),
+        ...(input.phone !== undefined ? { phone: input.phone } : {}),
+        ...(input.pan !== undefined ? { pan: input.pan } : {}),
+      };
+      const client = await tx.client.update({ where: { id: clientId }, data, select: clientSelect });
       await tx.auditLog.create({ data: { organizationId, actorUserId, action: 'CLIENT_UPDATED', entityType: 'Client', entityId: client.id, requestId, metadata: { before: { name: existing.name, email: existing.email, phone: existing.phone, pan: existing.pan }, after: { name: client.name, email: client.email, phone: client.phone, pan: client.pan } } } });
       return client;
     } catch (error) {
@@ -99,7 +100,7 @@ export class ClientService {
   async list(organizationId: string, limit: number, cursor?: string): Promise<ClientListResult> { return listClientsForOrganization(this.prisma, organizationId, limit, cursor); }
   async get(organizationId: string, clientId: string): Promise<ClientSummary> { return getClientForOrganization(this.prisma, organizationId, clientId); }
   async create(organizationId: string, input: ClientInput, actorUserId: string, requestId: string): Promise<ClientSummary> { return createClientForOrganization(this.prisma, organizationId, input, actorUserId, requestId); }
-  async update(organizationId: string, clientId: string, input: ClientInput, actorUserId: string, requestId: string): Promise<ClientSummary> { return updateClientForOrganization(this.prisma, organizationId, clientId, input, actorUserId, requestId); }
+  async update(organizationId: string, clientId: string, input: ClientUpdateInput, actorUserId: string, requestId: string): Promise<ClientSummary> { return updateClientForOrganization(this.prisma, organizationId, clientId, input, actorUserId, requestId); }
   async delete(organizationId: string, clientId: string, actorUserId: string, requestId: string): Promise<{ deleted: true; id: string }> { return deleteClientForOrganization(this.prisma, organizationId, clientId, actorUserId, requestId); }
   async onModuleDestroy(): Promise<void> { await this.prisma.$disconnect(); }
 }
