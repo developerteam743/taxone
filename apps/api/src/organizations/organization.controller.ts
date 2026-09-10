@@ -3,7 +3,7 @@ import { AccessTokenGuard, type AuthenticatedRequest } from '../auth/access-toke
 import { Roles } from '../auth/roles.decorator.js';
 import { RolesGuard } from '../auth/roles.guard.js';
 import { OrganizationService, normalizeOrganizationPageSize } from './organization.service.js';
-import { validateCreateOrganizationRequest, validateUpdateOrganizationRequest } from './organization.contract.js';
+import { validateCreateOrganizationInvitationRequest, validateCreateOrganizationRequest, validateUpdateOrganizationRequest } from './organization.contract.js';
 
 @Controller('api/v1/organizations')
 @UseGuards(AccessTokenGuard, RolesGuard)
@@ -36,5 +36,14 @@ export class OrganizationController {
     const validation = validateUpdateOrganizationRequest(body);
     if (!validation.success) throw new BadRequestException({ message: 'Request validation failed.', issues: validation.errors });
     return this.organizationService.updateForUser(organizationId, validation.data, request.user.userId, requestId ?? 'unknown');
+  }
+
+  @Post(':id/invitations')
+  @HttpCode(HttpStatus.CREATED)
+  @Roles('ADMIN')
+  async createInvitation(@Param('id') organizationId: string, @Body() body: unknown, @Req() request: AuthenticatedRequest, @Headers('x-request-id') requestId: string | undefined) {
+    const validation = validateCreateOrganizationInvitationRequest(body);
+    if (!validation.success) throw new BadRequestException({ message: 'Request validation failed.', issues: validation.errors });
+    return this.organizationService.createInvitationForUser(organizationId, validation.data, request.user.userId, requestId ?? 'unknown');
   }
 }
