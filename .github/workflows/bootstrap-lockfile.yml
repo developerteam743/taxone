@@ -9,7 +9,6 @@ permissions:
 
 jobs:
   bootstrap:
-    if: ${{ !hashFiles('pnpm-lock.yaml') }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -17,17 +16,24 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      - name: Check lockfile
+        id: lockfile
+        run: test -f pnpm-lock.yaml
       - name: Setup pnpm
+        if: steps.lockfile.outcome == 'failure'
         uses: pnpm/action-setup@v4
         with:
           version: 10.15.0
       - name: Setup Node
+        if: steps.lockfile.outcome == 'failure'
         uses: actions/setup-node@v4
         with:
           node-version: 22
       - name: Generate lockfile
+        if: steps.lockfile.outcome == 'failure'
         run: pnpm install --lockfile-only --ignore-scripts
       - name: Commit lockfile
+        if: steps.lockfile.outcome == 'failure'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
