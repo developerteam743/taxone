@@ -16,6 +16,7 @@ model Organization {
   auditLogs    AuditLog[]
   authSessions AuthSession[]
   invitations  OrganizationInvitation[]
+  clients      Client[]
 }
 
 model User {
@@ -26,7 +27,7 @@ model User {
   mfaCredential  MfaCredential?
   mfaChallenges  MfaChallenge[]
   createdAt      DateTime       @default(now())
-  updatedAt       DateTime      @updatedAt
+  updatedAt      DateTime       @updatedAt
   memberships    Membership[]
   auditLogs      AuditLog[]
   authSessions   AuthSession[]
@@ -71,6 +72,22 @@ model OrganizationInvitation {
   @@index([organizationId, email, createdAt])
   @@index([organizationId, expiresAt])
   @@index([tokenHash])
+}
+
+model Client {
+  id             String       @id @default(uuid())
+  organizationId String
+  name           String
+  email          String?
+  phone          String?
+  pan            String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, createdAt])
+  @@index([organizationId, name])
+  @@unique([organizationId, pan])
 }
 
 model AuditLog {
