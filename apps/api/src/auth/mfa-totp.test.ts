@@ -54,6 +54,6 @@ test('builds standards-compatible otpauth URI', () => {
   const uri = buildTotpUri(rfcSecret, 'user@example.com', 'TaxOne');
   assert.equal(
     uri,
-    `otpauth://totp/TaxOne%3Auser%40example.com?secret=${rfcSecret}&issuer=TaxOne&algorithm=SHA1&digits=6&period=30`,
+    `otpauth://totp/TaxOne:user%40example.com?secret=${rfcSecret}&issuer=TaxOne&algorithm=SHA1&digits=6&period=30`,
   );
 });
