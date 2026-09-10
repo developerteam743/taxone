@@ -5,6 +5,7 @@ COPY package.json pnpm-workspace.yaml pnpm-lock.yaml tsconfig.base.json ./
 COPY apps/ apps/
 COPY packages/ packages/
 RUN pnpm install --frozen-lockfile
+RUN pnpm --filter @taxone/database generate
 RUN pnpm --filter @taxone/api build
 RUN pnpm --filter @taxone/api deploy --prod --legacy /prod
 
