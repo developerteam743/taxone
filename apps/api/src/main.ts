@@ -5,6 +5,8 @@ import helmet from 'helmet';
 import { Logger, LoggerModule } from 'nestjs-pino';
 import type { Request, Response, NextFunction } from 'express';
 import { ApiExceptionFilter } from './common/api-exception.filter.js';
+import { AuthController } from './auth/auth.controller.js';
+import { AuthService } from './auth/auth.service.js';
 
 class RequestIdMiddleware implements NestMiddleware {
   use(req: Request, res: Response, next: NextFunction) {
@@ -45,7 +47,8 @@ class HealthController {
       },
     },
   })],
-  controllers: [HealthController],
+  controllers: [HealthController, AuthController],
+  providers: [AuthService],
 })
 class AppModule {
   configure(consumer: MiddlewareConsumer) { consumer.apply(RequestIdMiddleware).forRoutes({ path: '*', method: RequestMethod.ALL }); }
