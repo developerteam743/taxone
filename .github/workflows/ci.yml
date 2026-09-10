@@ -29,6 +29,8 @@ jobs:
         run: pnpm --filter @taxone/web exec playwright install --with-deps chromium
       - name: Generate Prisma client
         run: pnpm --filter @taxone/database generate
+      - name: Lint
+        run: pnpm lint
       - name: Typecheck
         run: pnpm typecheck
       - name: Build
