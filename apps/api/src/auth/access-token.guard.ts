@@ -19,9 +19,11 @@ export class AccessTokenGuard implements CanActivate {
 
 function readAccessToken(request: Request): string | undefined {
   const authorization = request.headers.authorization;
-  if (typeof authorization === 'string' && /^Bearer\s+/i.test(authorization)) {
+  if (typeof authorization === 'string') {
+    if (!/^Bearer\s+/i.test(authorization)) throw new UnauthorizedException('Authentication required');
     const token = authorization.slice(7).trim();
-    if (token) return token;
+    if (!token) throw new UnauthorizedException('Authentication required');
+    return token;
   }
 
   const cookieHeader = request.headers.cookie;
