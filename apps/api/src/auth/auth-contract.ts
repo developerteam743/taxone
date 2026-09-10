@@ -16,6 +16,14 @@ export type LoginResponse = {
   expiresIn: number;
 };
 
+export type MfaLoginResponse = {
+  mfaRequired: true;
+  challengeToken: string;
+  user: LoginResponse['user'];
+  organizationId: string | null;
+  expiresIn: number;
+};
+
 export type AuthValidationError = {
   field: 'email' | 'password';
   message: string;
