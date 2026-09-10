@@ -20,8 +20,9 @@ export type AuthenticatedUser = { userId: string; organizationId: string | null;
 @Injectable()
 export class AuthService {
   private readonly prisma = new PrismaClient();
-  private readonly mfaService = new MfaService();
   private dummyPasswordHashPromise?: Promise<string>;
+
+  constructor(private readonly mfaService: MfaService) {}
 
   async login(credentials: LoginRequest, metadata: LoginMetadata): Promise<AuthLoginResult> {
     const user = await this.prisma.user.findUnique({
@@ -45,17 +46,10 @@ export class AuthService {
   }
 
   async authenticateAccessToken(accessToken: string | undefined): Promise<AuthenticatedUser> {
-    if (typeof accessToken !== 'string' || accessToken.length < 32 || accessToken.length > 256) {
-      throw new UnauthorizedException('Authentication required');
-    }
+    if (typeof accessToken !== 'string' || accessToken.length < 32 || accessToken.length > 256) throw new UnauthorizedException('Authentication required');
     const now = new Date();
-    const session = await this.prisma.authSession.findUnique({
-      where: { accessTokenHash: hashToken(accessToken) },
-      select: { id: true, userId: true, organizationId: true, accessExpiresAt: true, revokedAt: true },
-    });
-    if (!session || session.revokedAt || session.accessExpiresAt <= now) {
-      throw new UnauthorizedException('Authentication required');
-    }
+    const session = await this.prisma.authSession.findUnique({ where: { accessTokenHash: hashToken(accessToken) }, select: { id: true, userId: true, organizationId: true, accessExpiresAt: true, revokedAt: true } });
+    if (!session || session.revokedAt || session.accessExpiresAt <= now) throw new UnauthorizedException('Authentication required');
     const user = await this.prisma.user.findUnique({ where: { id: session.userId }, select: { id: true } });
     if (!user) throw new UnauthorizedException('Authentication required');
     return { userId: user.id, organizationId: session.organizationId, sessionId: session.id };
@@ -99,7 +93,7 @@ export class AuthService {
     await this.revokeRefreshFamily(session.refreshFamilyId, session.organizationId, session.userId, metadata, 'AUTH_LOGOUT');
   }
 
-  async onModuleDestroy(): Promise<void> { await this.prisma.$disconnect(); await this.mfaService.onModuleDestroy(); }
+  async onModuleDestroy(): Promise<void> { await this.prisma.$disconnect(); }
 
   private async createSession(userId: string, email: string, name: string, organizationId: string | null, metadata: LoginMetadata, action: 'AUTH_LOGIN'): Promise<LoginResult> {
     const accessToken = createOpaqueToken();
