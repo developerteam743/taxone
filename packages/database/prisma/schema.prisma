@@ -17,6 +17,7 @@ model Organization {
   authSessions AuthSession[]
   invitations  OrganizationInvitation[]
   clients      Client[]
+  businesses   Business[]
 }
 
 model User {
@@ -84,10 +85,31 @@ model Client {
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  businesses     Business[]
 
   @@index([organizationId, createdAt])
   @@index([organizationId, name])
   @@unique([organizationId, pan])
+  @@unique([organizationId, id])
+}
+
+model Business {
+  id             String       @id @default(uuid())
+  organizationId String
+  clientId       String
+  name           String
+  tradeName      String?
+  pan            String?
+  gstin          String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  client         Client       @relation(fields: [organizationId, clientId], references: [organizationId, id], onDelete: Cascade)
+
+  @@index([organizationId, createdAt])
+  @@index([organizationId, clientId, createdAt])
+  @@unique([organizationId, gstin])
+  @@unique([organizationId, id])
 }
 
 model AuditLog {
