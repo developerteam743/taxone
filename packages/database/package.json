@@ -1,7 +1,10 @@
 {
   "name": "@taxone/database",
   "private": true,
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "scripts": {
+    "build": "tsc",
     "generate": "prisma generate",
     "typecheck": "tsc --noEmit",
     "test": "node --test"
