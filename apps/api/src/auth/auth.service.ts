@@ -55,6 +55,11 @@ export class AuthService {
     return { userId: user.id, organizationId: session.organizationId, sessionId: session.id };
   }
 
+  async getOrganizationRole(userId: string, organizationId: string): Promise<string | null> {
+    const membership = await this.prisma.membership.findUnique({ where: { organizationId_userId: { organizationId, userId } }, select: { role: true } });
+    return membership?.role ?? null;
+  }
+
   async refresh(refreshToken: string, metadata: LoginMetadata): Promise<LoginResult> {
     if (typeof refreshToken !== 'string' || refreshToken.length < 32) throw new UnauthorizedException('Invalid refresh token');
     const tokenHash = hashToken(refreshToken);
