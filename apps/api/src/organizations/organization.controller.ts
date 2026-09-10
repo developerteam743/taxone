@@ -12,9 +12,6 @@ export class OrganizationController {
   @Get(':id')
   @Roles('MEMBER')
   async getOrganization(@Param('id') organizationId: string, @Req() request: AuthenticatedRequest) {
-    if (request.user.organizationId !== organizationId) {
-      return this.organizationService.getByIdForUser(organizationId, request.user.userId);
-    }
     return this.organizationService.getByIdForUser(organizationId, request.user.userId);
   }
 }
