@@ -2,21 +2,8 @@ export const ACCESS_TOKEN_COOKIE = 'taxone_access';
 export const REFRESH_TOKEN_COOKIE = 'taxone_refresh';
 
 export type LoginRequest = { email: string; password: string };
-
-export type LoginResponse = {
-  user: { id: string; email: string; name: string };
-  organizationId: string | null;
-  expiresIn: number;
-};
-
-export type MfaLoginResponse = {
-  mfaRequired: true;
-  challengeToken: string;
-  user: LoginResponse['user'];
-  organizationId: string | null;
-  expiresIn: number;
-};
-
+export type LoginResponse = { user: { id: string; email: string; name: string }; organizationId: string | null; expiresIn: number };
+export type MfaLoginResponse = { mfaRequired: true; challengeToken: string; user: LoginResponse['user']; organizationId: string | null; expiresIn: number };
 export type MfaChallengeRequest = { challengeToken: string; code: string };
 export type AuthValidationError = { field: 'email' | 'password'; message: string };
 
@@ -36,6 +23,6 @@ export function validateMfaChallengeRequest(input: unknown): { success: true; da
   if (!input || typeof input !== 'object') return { success: false, message: 'Request body must be an object' };
   const candidate = input as Record<string, unknown>;
   if (typeof candidate.challengeToken !== 'string' || candidate.challengeToken.length < 32 || candidate.challengeToken.length > 256) return { success: false, message: 'Challenge token is invalid' };
-  if (typeof candidate.code !== 'string' || !/^\d{6}$/.test(candidate.code)) return { success: false, message: 'MFA code must be six digits' };
+  if (typeof candidate.code !== 'string' || !/^(?:\d{6}|[A-Za-z0-9]{12})$/.test(candidate.code)) return { success: false, message: 'MFA code must be six digits or a twelve-character recovery code' };
   return { success: true, data: { challengeToken: candidate.challengeToken, code: candidate.code } };
 }
