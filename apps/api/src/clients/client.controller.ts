@@ -43,7 +43,7 @@ export class ClientController {
   @Roles('CA')
   @HttpCode(HttpStatus.NO_CONTENT)
   async remove(@Param('id') clientId: string, @Req() request: AuthenticatedRequest, @Headers('x-request-id') requestId: string | undefined) {
-    await this.clientService.delete(requireOrganizationId(request), clientId, request.user.userId, requestId ?? 'unknown');
+    return this.clientService.delete(requireOrganizationId(request), clientId, request.user.userId, requestId ?? 'unknown');
   }
 }
 
