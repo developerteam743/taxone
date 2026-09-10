@@ -109,7 +109,13 @@ export class AuthService {
     const now = new Date();
     if (session.revokedAt || session.rotatedAt || session.refreshExpiresAt <= now) {
       if (session.revokedAt || session.rotatedAt) {
-        await this.revokeRefreshFamily(session.refreshFamilyId, session.organizationId, session.userId, metadata);
+        await this.revokeRefreshFamily(
+          session.refreshFamilyId,
+          session.organizationId,
+          session.userId,
+          metadata,
+          'AUTH_REFRESH_REUSE_DETECTED',
+        );
       } else {
         await this.prisma.authSession.updateMany({
           where: { id: session.id, revokedAt: null },
@@ -204,6 +210,28 @@ export class AuthService {
     };
   }
 
+  async logout(refreshToken: string | undefined, metadata: LoginMetadata): Promise<void> {
+    if (typeof refreshToken !== 'string' || refreshToken.length < 32) {
+      return;
+    }
+
+    const session = await this.prisma.authSession.findUnique({
+      where: { refreshTokenHash: hashToken(refreshToken) },
+    });
+
+    if (!session) {
+      return;
+    }
+
+    await this.revokeRefreshFamily(
+      session.refreshFamilyId,
+      session.organizationId,
+      session.userId,
+      metadata,
+      'AUTH_LOGOUT',
+    );
+  }
+
   async onModuleDestroy(): Promise<void> {
     await this.prisma.$disconnect();
   }
@@ -213,6 +241,7 @@ export class AuthService {
     organizationId: string | null,
     userId: string,
     metadata: LoginMetadata,
+    action: 'AUTH_REFRESH_REUSE_DETECTED' | 'AUTH_LOGOUT',
   ): Promise<void> {
     await this.prisma.$transaction(async (tx) => {
       await tx.authSession.updateMany({
@@ -224,7 +253,7 @@ export class AuthService {
           data: {
             organizationId,
             actorUserId: userId,
-            action: 'AUTH_REFRESH_REUSE_DETECTED',
+            action,
             entityType: 'AuthSession',
             requestId: metadata.requestId,
             metadata: { sessionFamilyId: refreshFamilyId },
