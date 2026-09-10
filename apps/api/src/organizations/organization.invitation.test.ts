@@ -3,12 +3,14 @@ import test from 'node:test';
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { createOrganizationInvitationForUser, ORGANIZATION_INVITATION_TTL_SECONDS } from './organization.service.js';
 
+type InvitationCreateArgs = { data: { email: string; role: string; tokenHash: string; expiresAt: Date; organizationId: string; inviterUserId: string } };
+
 function txFor(options: { membership?: unknown; existingUser?: unknown; existingMembership?: unknown }) {
   const calls: string[] = [];
   const tx = {
     membership: { findFirst: async (args: unknown) => { calls.push(`membership:${JSON.stringify(args)}`); return options.existingMembership ?? options.membership ?? null; } },
     user: { findUnique: async (args: unknown) => { calls.push(`user:${JSON.stringify(args)}`); return options.existingUser ?? null; } },
-    organizationInvitation: { create: async (args: any) => { calls.push(`invitation:${JSON.stringify(args)}`); return { id: 'inv-1', email: args.data.email, role: args.data.role, expiresAt: args.data.expiresAt }; } },
+    organizationInvitation: { create: async (args: InvitationCreateArgs) => { calls.push(`invitation:${JSON.stringify(args)}`); return { id: 'inv-1', email: args.data.email, role: args.data.role, expiresAt: args.data.expiresAt }; } },
     auditLog: { create: async (args: unknown) => { calls.push(`audit:${JSON.stringify(args)}`); return { id: 'audit-1' }; } },
   };
   return { prisma: { $transaction: async (callback: (client: typeof tx) => Promise<unknown>) => callback(tx) }, calls };
