@@ -25,6 +25,8 @@ jobs:
           node-version: 22
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile
+      - name: Generate Prisma client
+        run: pnpm --filter @taxone/database generate
       - name: Typecheck
         run: pnpm typecheck
       - name: Build
