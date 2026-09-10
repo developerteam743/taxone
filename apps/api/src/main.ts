@@ -8,6 +8,7 @@ import { ApiExceptionFilter } from './common/api-exception.filter.js';
 import { AuthController } from './auth/auth.controller.js';
 import { AuthService } from './auth/auth.service.js';
 import { MfaService } from './auth/mfa-service.js';
+import { AccessTokenGuard } from './auth/access-token.guard.js';
 
 class RequestIdMiddleware implements NestMiddleware {
   use(req: Request, res: Response, next: NextFunction) {
@@ -34,7 +35,7 @@ class HealthController {
     },
   })],
   controllers: [HealthController, AuthController],
-  providers: [AuthService, MfaService],
+  providers: [AuthService, MfaService, AccessTokenGuard],
 })
 class AppModule {
   configure(consumer: MiddlewareConsumer) { consumer.apply(RequestIdMiddleware).forRoutes({ path: '*', method: RequestMethod.ALL }); }
