@@ -12,7 +12,7 @@ function prismaFor(result: unknown) {
     },
     membership: {
       findFirst: async (args: unknown) => { assert.deepEqual(args, { where: { organizationId: 'org-1', userId: 'user-1' }, select: { id: true } }); return result; },
-      findMany: async (args: unknown) => { assert.deepEqual(args, { where: { organizationId: 'org-1' }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], select: { id: true, userId: true, role: true, createdAt: true, user: { select: { id: true, email: true, name: true } } }); return result; },
+      findMany: async (args: unknown) => { assert.deepEqual(args, { where: { organizationId: 'org-1' }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], select: { id: true, userId: true, role: true, createdAt: true, user: { select: { id: true, email: true, name: true } } } }); return result; },
     },
   };
 }
