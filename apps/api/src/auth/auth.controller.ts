@@ -1,9 +1,10 @@
-import { BadRequestException, Body, Controller, Headers, HttpCode, HttpStatus, Post, Res } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Headers, HttpCode, HttpStatus, Post, Req, Res, UseGuards } from '@nestjs/common';
 import type { Response } from 'express';
 import { createHash } from 'node:crypto';
 import { ACCESS_TOKEN_COOKIE, REFRESH_TOKEN_COOKIE, validateLoginRequest, validateMfaChallengeRequest } from './auth-contract.js';
 import { AuthService } from './auth.service.js';
 import { MfaService } from './mfa-service.js';
+import { AccessTokenGuard, type AuthenticatedRequest } from './access-token.guard.js';
 
 const ACCESS_COOKIE_MAX_AGE = 15 * 60 * 1000;
 const REFRESH_COOKIE_MAX_AGE = 30 * 24 * 60 * 60 * 1000;
@@ -11,7 +12,7 @@ const COOKIE_OPTIONS = { httpOnly: true, secure: true, sameSite: 'strict' as con
 
 @Controller('api/v1/auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService, private readonly mfaService: MfaService = new MfaService()) {}
+  constructor(private readonly authService: AuthService, private readonly mfaService: MfaService) {}
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
@@ -32,6 +33,21 @@ export class AuthController {
     const result = await this.mfaService.completeChallenge(validation.data.challengeToken, validation.data.code, this.metadata(response, requestId, userAgent));
     this.setAuthCookies(response, result.accessToken, result.refreshToken);
     return { user: result.user, organizationId: result.organizationId, expiresIn: result.expiresIn };
+  }
+
+  @Post('mfa/enrollment')
+  @UseGuards(AccessTokenGuard)
+  @HttpCode(HttpStatus.OK)
+  async beginMfaEnrollment(@Req() request: AuthenticatedRequest) {
+    return this.mfaService.beginEnrollment(request.user.userId);
+  }
+
+  @Post('mfa/enrollment/confirm')
+  @UseGuards(AccessTokenGuard)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async confirmMfaEnrollment(@Req() request: AuthenticatedRequest, @Body() body: unknown, @Headers('x-request-id') requestId: string | undefined, @Headers('user-agent') userAgent: string | undefined, @Res({ passthrough: true }) response: Response): Promise<void> {
+    if (!body || typeof body !== 'object' || typeof (body as Record<string, unknown>).code !== 'string' || !/^\d{6}$/.test((body as Record<string, unknown>).code as string)) throw new BadRequestException('MFA code must be six digits');
+    await this.mfaService.confirmEnrollment(request.user.userId, (body as Record<string, unknown>).code as string, this.metadata(response, requestId, userAgent));
   }
 
   @Post('refresh')
