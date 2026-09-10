@@ -1,0 +1,12 @@
+{$TAXONE_DOMAIN} {
+  encode gzip zstd
+
+  @api path /api/*
+  handle @api {
+    reverse_proxy api:4000
+  }
+
+  handle {
+    reverse_proxy web:3000
+  }
+}
