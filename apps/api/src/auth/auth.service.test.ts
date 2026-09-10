@@ -34,45 +34,36 @@ function makeService(config: {
   const created: Array<Record<string, unknown>> = [];
   const audits: Array<Record<string, unknown>> = [];
   const familyRevocations: Array<Record<string, unknown>> = [];
-  const service = Object.create(AuthService.prototype) as AuthService & { prisma: any };
-
-  const authSession = {
-    findUnique: async () => config.currentSession,
-    updateMany: async (args: Record<string, unknown>) => {
-      const where = args.where as Record<string, unknown>;
-      if (where.refreshFamilyId) {
-        familyRevocations.push(args);
-        return { count: 1 };
-      }
-      return { count: config.consumeCount ?? 1 };
+  const service = Object.create(AuthService.prototype) as AuthService;
+  const prisma = {
+    authSession: {
+      findUnique: async () => config.currentSession,
+      updateMany: async (args: Record<string, unknown>) => {
+        const where = args.where as Record<string, unknown>;
+        if (where.refreshFamilyId) {
+          familyRevocations.push(args);
+          return { count: 1 };
+        }
+        return { count: config.consumeCount ?? 1 };
+      },
+      create: async (args: Record<string, unknown>) => {
+        created.push(args.data as Record<string, unknown>);
+        return args.data;
+      },
     },
-    create: async (args: Record<string, unknown>) => {
-      created.push(args.data as Record<string, unknown>);
-      return args.data;
-    },
-  };
-
-  service.prisma = {
-    authSession,
     auditLog: {
       create: async (args: Record<string, unknown>) => {
         audits.push(args.data as Record<string, unknown>);
         return args.data;
       },
     },
-    $transaction: async (callback: (tx: typeof authSession & { auditLog: { create: typeof authSession.create } }) => Promise<unknown>) =>
-      callback({ ...authSession, auditLog: { create: async (args: Record<string, unknown>) => {
-        audits.push(args.data as Record<string, unknown>);
-        return args.data;
-      } } }),
+    user: {
+      findUnique: async () => config.userExists
+        ? { id: 'user-1', email: 'user@example.com', name: 'Test User' }
+        : null,
+    },
   };
-
-  if (!config.userExists) {
-    service.prisma.user = { findUnique: async () => null };
-  } else {
-    service.prisma.user = { findUnique: async () => ({ id: 'user-1', email: 'user@example.com', name: 'Test User' }) };
-  }
-
+  (service as unknown as { prisma: typeof prisma }).prisma = prisma;
   return { service, created, audits, familyRevocations };
 }
 
