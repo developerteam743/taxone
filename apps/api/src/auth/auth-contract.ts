@@ -51,11 +51,14 @@ export function validateLoginRequest(input: unknown): {
     return { success: false, errors };
   }
 
+  const email = candidate.email as string;
+  const password = candidate.password as string;
+
   return {
     success: true,
     data: {
-      email: candidate.email.trim().toLowerCase(),
-      password: candidate.password,
+      email: email.trim().toLowerCase(),
+      password,
     },
   };
 }
