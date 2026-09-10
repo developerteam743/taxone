@@ -2,7 +2,9 @@ import { randomUUID } from 'node:crypto';
 import { Controller, Get, Module, MiddlewareConsumer, NestMiddleware, RequestMethod } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import helmet from 'helmet';
+import { Logger } from 'nestjs-pino';
 import type { Request, Response, NextFunction } from 'express';
+import { ApiExceptionFilter } from './common/api-exception.filter.js';
 
 class RequestIdMiddleware implements NestMiddleware {
   use(req: Request, res: Response, next: NextFunction) {
@@ -27,7 +29,9 @@ class AppModule {
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
+  app.useLogger(app.get(Logger));
   app.use(helmet());
+  app.useGlobalFilters(new ApiExceptionFilter());
   app.enableShutdownHooks();
   await app.listen(Number(process.env.API_PORT ?? 4000));
 }
