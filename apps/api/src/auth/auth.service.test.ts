@@ -35,33 +35,37 @@ function makeService(config: {
   const audits: Array<Record<string, unknown>> = [];
   const familyRevocations: Array<Record<string, unknown>> = [];
   const service = Object.create(AuthService.prototype) as AuthService;
+  const authSession = {
+    findUnique: async () => config.currentSession,
+    updateMany: async (args: Record<string, unknown>) => {
+      const where = args.where as Record<string, unknown>;
+      if (where.refreshFamilyId) {
+        familyRevocations.push(args);
+        return { count: 1 };
+      }
+      return { count: config.consumeCount ?? 1 };
+    },
+    create: async (args: Record<string, unknown>) => {
+      created.push(args.data as Record<string, unknown>);
+      return args.data;
+    },
+  };
+  const auditLog = {
+    create: async (args: Record<string, unknown>) => {
+      audits.push(args.data as Record<string, unknown>);
+      return args.data;
+    },
+  };
   const prisma = {
-    authSession: {
-      findUnique: async () => config.currentSession,
-      updateMany: async (args: Record<string, unknown>) => {
-        const where = args.where as Record<string, unknown>;
-        if (where.refreshFamilyId) {
-          familyRevocations.push(args);
-          return { count: 1 };
-        }
-        return { count: config.consumeCount ?? 1 };
-      },
-      create: async (args: Record<string, unknown>) => {
-        created.push(args.data as Record<string, unknown>);
-        return args.data;
-      },
-    },
-    auditLog: {
-      create: async (args: Record<string, unknown>) => {
-        audits.push(args.data as Record<string, unknown>);
-        return args.data;
-      },
-    },
+    authSession,
+    auditLog,
     user: {
       findUnique: async () => config.userExists
         ? { id: 'user-1', email: 'user@example.com', name: 'Test User' }
         : null,
     },
+    $transaction: async (callback: (tx: typeof authSession & { auditLog: typeof auditLog }) => Promise<unknown>) =>
+      callback({ ...authSession, auditLog }),
   };
   (service as unknown as { prisma: typeof prisma }).prisma = prisma;
   return { service, created, audits, familyRevocations };
